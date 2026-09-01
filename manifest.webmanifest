@@ -1,0 +1,26 @@
+{
+  "name": "Japanese Desk Calendar",
+  "short_name": "日めくり",
+  "description": "A Japanese-inspired daily desk calendar for Brussels.",
+  "lang": "en",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#f5f2ea",
+  "theme_color": "#f5f2ea",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

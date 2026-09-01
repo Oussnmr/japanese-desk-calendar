@@ -3,7 +3,9 @@
   --paper: #f5f2ea;
   --ink: #11100e;
   --red: #e52b1a;
+  --muted: #4c4942;
   --hairline: rgba(17, 16, 14, 0.34);
+  --frame: rgba(17, 16, 14, 0.18);
   --pad-x: max(26px, env(safe-area-inset-left));
   --pad-r: max(26px, env(safe-area-inset-right));
   --pad-y: max(18px, env(safe-area-inset-top));
@@ -14,6 +16,15 @@
   color: var(--ink);
 }
 
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #080807;
+  --ink: #f5f2ea;
+  --muted: #aaa69c;
+  --hairline: rgba(245, 242, 234, 0.34);
+  --frame: rgba(245, 242, 234, 0.18);
+}
+
 * { box-sizing: border-box; }
 
 html, body {
@@ -22,6 +33,7 @@ html, body {
   margin: 0;
   overflow: hidden;
   background: var(--paper);
+  transition: background-color 180ms ease, color 180ms ease;
 }
 
 body {
@@ -47,7 +59,7 @@ body {
   content: "";
   position: absolute;
   inset: 10px;
-  border: 1px solid rgba(17, 16, 14, 0.18);
+  border: 1px solid var(--frame);
   pointer-events: none;
 }
 
@@ -63,8 +75,32 @@ body {
 
 .masthead p { margin: 0; }
 .edition, .timezone { font-size: clamp(8px, 0.85vw, 11px); font-weight: 700; letter-spacing: 0.08em; line-height: 1.35; }
-.edition span, .timezone span { font-weight: 500; color: #4c4942; }
+.edition span, .timezone span { font-weight: 500; color: var(--muted); }
 .timezone { text-align: right; }
+.masthead-tools { display: flex; align-items: flex-start; justify-content: flex-end; gap: clamp(9px, 1.2vw, 16px); }
+.theme-toggle {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  margin: -2px -2px 0 0;
+  padding: 2px;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.theme-toggle span { opacity: 0.28; transition: opacity 160ms ease, color 160ms ease; }
+.theme-toggle .theme-sun,
+html[data-theme="dark"] .theme-toggle .theme-moon { opacity: 0.92; color: var(--ink); }
+html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--muted); }
+.theme-toggle:focus-visible { outline: 1px solid var(--red); outline-offset: 3px; }
+@media (hover: hover) { .theme-toggle:hover span { opacity: 0.68; } }
 .year { font-size: clamp(38px, 5vw, 62px); line-height: 0.82; font-weight: 950; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; }
 
 .weekday-panel {
@@ -139,7 +175,7 @@ body {
   font-weight: 950;
   letter-spacing: -0.105em;
   font-variant-numeric: tabular-nums;
-  color: #050504;
+  color: var(--ink);
   transform: translateX(-0.03em);
 }
 
@@ -189,7 +225,7 @@ body {
 .weather-details div { min-width: 0; }
 .weather-details dt { font-size: 7px; font-weight: 800; letter-spacing: 0.04em; }
 .weather-details dd { margin: 2px 0 0; font-size: clamp(10px, 1.1vw, 13px); font-weight: 750; white-space: nowrap; }
-.weather-status { min-height: 10px; margin: 5px 0 0; color: #68645b; font-size: 7px; letter-spacing: 0.08em; text-align: right; }
+.weather-status { min-height: 10px; margin: 5px 0 0; color: var(--muted); font-size: 7px; letter-spacing: 0.08em; text-align: right; }
 
 .time-band {
   grid-column: 1 / -1;

@@ -3,6 +3,7 @@ import { loadWeather, weatherLabel } from "./weather.js";
 
 const TIME_ZONE = "Europe/Brussels";
 const WEATHER_REFRESH_MS = 20 * 60 * 1000;
+const THEME_KEY = "jdc-theme";
 const WEEKDAYS_JA = ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"];
 const WEEKDAYS_EN = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const MONTHS_EN = [
@@ -29,12 +30,23 @@ const elements = Object.fromEntries(
   [
     "year", "weekday-ja", "weekday-en", "date-small", "day-number", "month-number",
     "month-en", "mini-calendar", "clock", "weather-temp", "weather-condition",
-    "weather-high", "weather-low", "weather-wind", "weather-status",
+    "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
   ].map((id) => [id, document.getElementById(id)]),
 );
 
 let currentDateKey = "";
 let wakeLock = null;
+
+function applyTheme(theme, persist = false) {
+  const isDark = theme === "dark";
+  document.documentElement.dataset.theme = isDark ? "dark" : "light";
+  elements["theme-toggle"].ariaPressed = String(isDark);
+  elements["theme-toggle"].ariaLabel = isDark ? "Enable light mode" : "Enable dark mode";
+  document.querySelector('meta[name="theme-color"]').content = isDark ? "#080807" : "#f5f2ea";
+  if (persist) {
+    try { localStorage.setItem(THEME_KEY, isDark ? "dark" : "light"); } catch {}
+  }
+}
 
 function brusselsDateParts(date = new Date()) {
   const parts = Object.fromEntries(
@@ -110,6 +122,11 @@ async function requestWakeLock() {
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && !wakeLock) requestWakeLock();
+});
+
+applyTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+elements["theme-toggle"].addEventListener("click", () => {
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
 });
 
 if ("serviceWorker" in navigator) {

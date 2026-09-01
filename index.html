@@ -8,6 +8,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="日めくり">
+    <script>
+      try {
+        if (localStorage.getItem("jdc-theme") === "dark") document.documentElement.dataset.theme = "dark";
+      } catch {}
+    </script>
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
     <link rel="icon" href="./icons/icon-192.png" sizes="192x192">
@@ -19,7 +24,13 @@
       <header class="masthead">
         <p class="edition">日々の暦 <span>DAILY CALENDAR · BRUSSELS</span></p>
         <p class="year" id="year">2026</p>
-        <p class="timezone">欧州中央時間<br><span>EUROPE / BRUSSELS</span></p>
+        <div class="masthead-tools">
+          <p class="timezone">欧州中央時間<br><span>EUROPE / BRUSSELS</span></p>
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Enable dark mode" aria-pressed="false">
+            <span class="theme-sun" aria-hidden="true">☼</span>
+            <span class="theme-moon" aria-hidden="true">☾</span>
+          </button>
+        </div>
       </header>
 
       <section class="weekday-panel" aria-label="Day of the week">

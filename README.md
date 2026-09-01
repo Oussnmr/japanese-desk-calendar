@@ -31,3 +31,4 @@ The app requests a screen wake lock when the browser supports it, but iPadOS may
 - Date and time always use `Europe/Brussels`, regardless of the device time zone.
 - Weather refreshes every 20 minutes and gracefully falls back to the last valid reading.
 - The calendar remains fully functional without weather or network access.
+- The discreet sun/moon control switches themes and remembers the choice on the device.

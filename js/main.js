@@ -1,5 +1,5 @@
-import { renderMonthCalendar } from "./calendar.js";
-import { loadWeather, weatherLabel } from "./weather.js";
+import { renderMonthCalendar } from "./calendar.js?v=3";
+import { loadWeather, weatherLabel } from "./weather.js?v=3";
 
 const TIME_ZONE = "Europe/Brussels";
 const WEATHER_REFRESH_MS = 20 * 60 * 1000;
@@ -40,8 +40,8 @@ let wakeLock = null;
 function applyTheme(theme, persist = false) {
   const isDark = theme === "dark";
   document.documentElement.dataset.theme = isDark ? "dark" : "light";
-  elements["theme-toggle"].ariaPressed = String(isDark);
-  elements["theme-toggle"].ariaLabel = isDark ? "Enable light mode" : "Enable dark mode";
+  elements["theme-toggle"].setAttribute("aria-pressed", String(isDark));
+  elements["theme-toggle"].setAttribute("aria-label", isDark ? "Enable light mode" : "Enable dark mode");
   document.querySelector('meta[name="theme-color"]').content = isDark ? "#080807" : "#f5f2ea";
   if (persist) {
     try { localStorage.setItem(THEME_KEY, isDark ? "dark" : "light"); } catch {}
@@ -130,7 +130,7 @@ elements["theme-toggle"].addEventListener("click", () => {
 });
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(() => {}));
+  window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js?v=3").catch(() => {}));
 }
 
 tick();

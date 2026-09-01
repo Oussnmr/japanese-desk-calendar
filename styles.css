@@ -79,12 +79,19 @@ body {
 .timezone { text-align: right; }
 .masthead-tools { display: flex; align-items: flex-start; justify-content: flex-end; gap: clamp(9px, 1.2vw, 16px); }
 .theme-toggle {
+  -webkit-appearance: none;
+  appearance: none;
   display: inline-flex;
   gap: 5px;
   align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 28px;
   margin: -2px -2px 0 0;
-  padding: 2px;
+  padding: 6px 4px;
   border: 0;
+  border-radius: 0;
+  box-shadow: none;
   color: var(--muted);
   background: transparent;
   font-family: inherit;
@@ -93,6 +100,7 @@ body {
   line-height: 1;
   letter-spacing: 0.08em;
   cursor: pointer;
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 .theme-toggle span { opacity: 0.28; transition: opacity 160ms ease, color 160ms ease; }

@@ -1,12 +1,12 @@
-const CACHE_NAME = "japanese-desk-calendar-v2";
+const CACHE_NAME = "japanese-desk-calendar-v3";
 const OFFLINE_URL = new URL("./index.html", self.registration.scope).href;
 const LOCAL_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css",
-  "./js/main.js",
-  "./js/calendar.js",
-  "./js/weather.js",
+  "./styles.css?v=3",
+  "./js/main.js?v=3",
+  "./js/calendar.js?v=3",
+  "./js/weather.js?v=3",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
@@ -44,6 +44,14 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request)),
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request)),
   );
 });

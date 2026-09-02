@@ -6,11 +6,6 @@ const WEATHER_REFRESH_MS = 20 * 60 * 1000;
 const LIGHT_REFRESH_MS = 30 * 1000;
 const PRAYER_REFRESH_MS = 30 * 60 * 1000;
 const THEME_KEY = "jdc-theme";
-const INK_FRAME_DURATION_MS = 1000;
-const INK_FRAME_PATHS = Array.from(
-  { length: 10 },
-  (_, index) => `./assets/ink-frames/ink-${String(index + 1).padStart(2, "0")}.webp`,
-);
 const WEEKDAYS_JA = ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"];
 const WEEKDAYS_EN = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const MONTHS_EN = [
@@ -51,66 +46,6 @@ let stopwatchTimer = null;
 let lightState = null;
 let lightAvailable = false;
 let lightPending = false;
-
-function preloadImage(path) {
-  const image = new Image();
-  image.src = path;
-  if (image.decode) return image.decode().catch(() => {});
-  return new Promise((resolve) => {
-    image.addEventListener("load", resolve, { once: true });
-    image.addEventListener("error", resolve, { once: true });
-  });
-}
-
-async function initInkAnimation() {
-  const stage = document.getElementById("ink-animation");
-  if (!stage || !elements["hero-date"].classList.contains("use-ink-animation")) return;
-  const layers = [...stage.querySelectorAll(".ink-frame")];
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  let timer = null;
-  let visibleLayer = 0;
-  let frameIndex = -1;
-  let loaded = false;
-
-  const stop = () => {
-    window.clearInterval(timer);
-    timer = null;
-    frameIndex = -1;
-    visibleLayer = 0;
-    layers[0].src = INK_FRAME_PATHS[4];
-    layers[0].classList.add("is-visible");
-    layers[1].classList.remove("is-visible");
-  };
-
-  const advance = () => {
-    frameIndex = (frameIndex + 1) % INK_FRAME_PATHS.length;
-    const nextLayer = visibleLayer === 0 ? 1 : 0;
-    layers[nextLayer].src = INK_FRAME_PATHS[frameIndex];
-    layers[nextLayer].classList.add("is-visible");
-    layers[visibleLayer].classList.remove("is-visible");
-    visibleLayer = nextLayer;
-  };
-
-  const start = async () => {
-    if (reduceMotion.matches || timer) return;
-    if (!loaded) {
-      await Promise.all(INK_FRAME_PATHS.map(preloadImage));
-      loaded = true;
-    }
-    if (reduceMotion.matches || timer) return;
-    advance();
-    timer = window.setInterval(advance, INK_FRAME_DURATION_MS);
-  };
-
-  const handleMotionChange = ({ matches }) => {
-    if (matches) stop();
-    else start();
-  };
-  if (reduceMotion.addEventListener) reduceMotion.addEventListener("change", handleMotionChange);
-  else reduceMotion.addListener(handleMotionChange);
-
-  if (!reduceMotion.matches) start();
-}
 
 function showLightState(state, available = true) {
   lightState = state;
@@ -369,4 +304,3 @@ setInterval(refreshPrayers, PRAYER_REFRESH_MS);
 refreshLight();
 setInterval(refreshLight, LIGHT_REFRESH_MS);
 requestWakeLock();
-initInkAnimation();

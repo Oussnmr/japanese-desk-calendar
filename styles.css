@@ -200,11 +200,10 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   z-index: 1;
 }
 
-.enso-ring {
+.ink-stain {
   position: absolute;
   width: min(72vw, 70vh, 620px);
-  aspect-ratio: 1;
-  background: url("./assets/enso-brush.png") center / contain no-repeat;
+  height: auto;
   opacity: 0.96;
   pointer-events: none;
   -webkit-user-select: none;
@@ -213,35 +212,7 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   z-index: -1;
 }
 
-.hero-date[data-digits="2"] .enso-ring { width: min(72vw, 69vh, 600px); }
-
-.ink-animation {
-  display: none;
-  position: absolute;
-  width: min(72vw, 70vh, 620px);
-  aspect-ratio: 1;
-  pointer-events: none;
-  transform: translateY(-1.5%);
-  z-index: -1;
-}
-
-.hero-date[data-digits="2"] .ink-animation { width: min(72vw, 69vh, 600px); }
-.hero-date.use-ink-animation .enso-ring { display: none; }
-.hero-date.use-ink-animation .ink-animation { display: block; }
-
-.ink-frame {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  opacity: 0;
-  transition: opacity 320ms linear;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-.ink-frame.is-visible { opacity: 0.96; }
+.hero-date[data-digits="2"] .ink-stain { width: min(72vw, 69vh, 600px); }
 
 .day-number {
   position: absolute;
@@ -376,14 +347,8 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   .light-presets button { width: 40px; height: 40px; }
   .day-number { font-size: clamp(250px, 66vw, 410px); }
   .day-number[data-digits="2"] { font-size: clamp(205px, 55vw, 350px); }
-  .enso-ring { width: min(90vw, 68vh, 590px); }
-  .ink-animation { width: min(90vw, 68vh, 590px); }
-  .hero-date[data-digits="2"] .enso-ring { width: min(92vw, 68vh, 580px); }
-  .hero-date[data-digits="2"] .ink-animation { width: min(92vw, 68vh, 580px); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ink-frame { transition: none; }
+  .ink-stain { width: min(90vw, 68vh, 590px); }
+  .hero-date[data-digits="2"] .ink-stain { width: min(92vw, 68vh, 580px); }
 }
 
 @media (prefers-reduced-motion: no-preference) {

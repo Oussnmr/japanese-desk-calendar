@@ -117,12 +117,21 @@ function renderDate(parts, animate = false) {
   }
 }
 
+function renderClock(value) {
+  elements.clock.replaceChildren(...[...value].map((character) => {
+    const slot = document.createElement("span");
+    slot.className = character === ":" ? "clock-slot clock-separator" : "clock-slot";
+    slot.textContent = character;
+    return slot;
+  }));
+  elements.clock.dateTime = value;
+}
+
 function tick() {
   const now = new Date();
   const parts = brusselsDateParts(now);
   const dateKey = `${parts.year}-${parts.month}-${parts.day}`;
-  elements.clock.textContent = timeFormatter.format(now);
-  elements.clock.dateTime = elements.clock.textContent;
+  renderClock(timeFormatter.format(now));
   if (dateKey !== currentDateKey) {
     renderDate(parts, currentDateKey !== "");
     currentDateKey = dateKey;

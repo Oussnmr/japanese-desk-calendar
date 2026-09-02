@@ -131,9 +131,11 @@ function brusselsDateParts(date = new Date()) {
 
 function renderDate(parts, animate = false) {
   const { year, month, day, weekday } = parts;
+  const weekdayEn = WEEKDAYS_EN[weekday];
   elements.year.textContent = year;
   elements["weekday-ja"].textContent = WEEKDAYS_JA[weekday];
-  elements["weekday-en"].textContent = WEEKDAYS_EN[weekday];
+  elements["weekday-en"].textContent = weekdayEn;
+  elements["weekday-en"].dataset.label = weekdayEn;
   elements["date-small"].textContent = `${day} · ${MONTHS_EN[month - 1]}`;
   elements["day-number"].textContent = day;
   elements["day-number"].dataset.digits = String(day).length;

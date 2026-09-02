@@ -131,12 +131,12 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   z-index: 2;
 }
 
-.prayer-panel { position: absolute; top: clamp(30px, 5vh, 52px); left: 0; width: 96px; color: var(--muted); font-family: var(--latin-font); font-variant-numeric: tabular-nums; }
+.prayer-panel { position: absolute; top: clamp(30px, 5vh, 52px); left: 0; width: 108px; color: var(--muted); font-family: var(--latin-font); font-variant-numeric: tabular-nums; }
 .prayer-panel[hidden] { display: none; }
 .prayer-panel p { display: flex; align-items: baseline; justify-content: flex-start; gap: 4px; margin: 0 0 7px; padding-bottom: 4px; border-bottom: 1px solid var(--red); font-size: 10px; letter-spacing: 0.08em; }
 .prayer-panel p span { color: var(--red); font-family: var(--japanese-font); font-size: 12px; }
-.prayer-list { display: grid; justify-content: start; gap: 6px; }
-.prayer-list div { display: grid; grid-template-columns: 10px 43px 28px; column-gap: 5px; align-items: baseline; font-size: clamp(12px, 1.05vw, 14px); line-height: 1.12; white-space: nowrap; }
+.prayer-list { display: grid; justify-content: start; gap: 7px; }
+.prayer-list div { display: grid; grid-template-columns: 10px max-content max-content; column-gap: 3px; align-items: baseline; font-size: clamp(13px, 1.12vw, 15px); line-height: 1.12; white-space: nowrap; }
 .prayer-list div span:first-child { color: var(--red); }
 .prayer-list div span:nth-child(2) { color: var(--ink); }
 .prayer-list div span:last-child { color: var(--red); text-align: right; }
@@ -322,11 +322,12 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   }
   .hero-date { grid-column: 2; grid-row: 2; }
   .weekday-panel { grid-column: 1; grid-row: 2; }
-  .prayer-panel { top: 36px; left: 0; width: 94px; }
-  .prayer-panel p { font-size: 9px; }
-  .prayer-list { gap: 5px; }
-  .prayer-list div { grid-template-columns: 9px 42px 27px; column-gap: 4px; font-size: 10px; }
+  .prayer-panel { top: 36px; left: 0; width: 112px; }
+  .prayer-panel p { font-size: 10px; }
+  .prayer-list { gap: 6px; }
+  .prayer-list div { grid-template-columns: 10px max-content max-content; column-gap: 3px; font-size: 12px; }
   .weekday-ja { transform: translateX(4px); }
+  .weekday-en { position: relative; left: 12px; }
   .month-panel { grid-column: 1 / -1; grid-row: 3; display: grid; grid-template-columns: 0.7fr 1.3fr; gap: 24px; border-top: 1px solid var(--ink); }
   .month-heading { align-self: start; }
   .month-rule { display: none; }

@@ -1,10 +1,19 @@
-const CACHE_NAME = "japanese-desk-calendar-v6";
+const CACHE_NAME = "japanese-desk-calendar-v7";
 const OFFLINE_URL = new URL("./index.html", self.registration.scope).href;
 const LOCAL_ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
-  "./assets/enso-brush.png",
+  "./assets/ink-frames/ink-01.webp",
+  "./assets/ink-frames/ink-02.webp",
+  "./assets/ink-frames/ink-03.webp",
+  "./assets/ink-frames/ink-04.webp",
+  "./assets/ink-frames/ink-05.webp",
+  "./assets/ink-frames/ink-06.webp",
+  "./assets/ink-frames/ink-07.webp",
+  "./assets/ink-frames/ink-08.webp",
+  "./assets/ink-frames/ink-09.webp",
+  "./assets/ink-frames/ink-10.webp",
   "./fonts/calendar-fonts.css",
   "./js/main.js",
   "./js/calendar.js",

@@ -16,6 +16,7 @@
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
     <link rel="icon" href="./icons/icon-192.png" sizes="192x192">
+    <link rel="preload" as="image" href="./assets/ink-frames/ink-05.webp" type="image/webp">
     <link rel="stylesheet" href="./styles.css">
     <link rel="stylesheet" href="./fonts/calendar-fonts.css">
     <title>Japanese Desk Calendar</title>
@@ -54,8 +55,12 @@
         </section>
       </section>
 
-      <section class="hero-date" id="hero-date" data-digits="1" aria-label="Current day">
-        <img class="enso-ring" src="./assets/enso-brush.png" alt="" width="1254" height="1254" decoding="async" draggable="false">
+      <section class="hero-date use-ink-animation" id="hero-date" data-digits="1" aria-label="Current day">
+        <div class="enso-ring" aria-hidden="true"></div>
+        <div class="ink-animation" id="ink-animation" aria-hidden="true">
+          <img class="ink-frame is-visible" src="./assets/ink-frames/ink-05.webp" alt="" width="900" height="900" decoding="async" draggable="false">
+          <img class="ink-frame" src="./assets/ink-frames/ink-05.webp" alt="" width="900" height="900" decoding="async" draggable="false">
+        </div>
         <p class="day-number" id="day-number">2</p>
         <p class="hero-caption"><span>日</span> THE DAY, PRESENT AND UNREPEATED</p>
       </section>

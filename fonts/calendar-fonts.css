@@ -58,8 +58,12 @@ body {
 
 .weekday-en {
   font-size: clamp(21px, 2.35vw, 28px);
-  line-height: 1;
-  letter-spacing: 0.025em;
+  line-height: 0.92;
+  letter-spacing: 0.015em;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  white-space: normal;
+  transform: none;
 }
 
 .hero-date {

@@ -118,12 +118,7 @@ function renderDate(parts, animate = false) {
 }
 
 function renderClock(value) {
-  elements.clock.replaceChildren(...[...value].map((character) => {
-    const slot = document.createElement("span");
-    slot.className = character === ":" ? "clock-slot clock-separator" : "clock-slot";
-    slot.textContent = character;
-    return slot;
-  }));
+  elements.clock.textContent = value;
   elements.clock.dateTime = value;
 }
 

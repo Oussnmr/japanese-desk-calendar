@@ -49,9 +49,15 @@ function bridgeUrl() {
         history.replaceState(null, "", `${location.pathname}${location.hash}`);
       }
     }
+
+    // When the calendar itself is served by the local bridge, keep every light
+    // request same-origin. This is the iPad-friendly HTTP/LAN mode.
+    if (window.location.protocol === "http:") return window.location.origin;
+
+    // Hosted HTTPS mode keeps the previous optional bridge configuration.
     return localStorage.getItem(BRIDGE_KEY);
   } catch {
-    return null;
+    return window.location.protocol === "http:" ? window.location.origin : null;
   }
 }
 

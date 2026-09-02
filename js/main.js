@@ -1,5 +1,5 @@
-import { renderMonthCalendar } from "./calendar.js?v=4";
-import { loadWeather, weatherLabel } from "./weather.js?v=4";
+import { renderMonthCalendar } from "./calendar.js?v=5";
+import { loadWeather, weatherLabel } from "./weather.js?v=5";
 
 const TIME_ZONE = "Europe/Brussels";
 const WEATHER_REFRESH_MS = 20 * 60 * 1000;
@@ -130,7 +130,7 @@ elements["theme-toggle"].addEventListener("click", () => {
 });
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js?v=4").catch(() => {}));
+  window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js?v=5").catch(() => {}));
 }
 
 tick();

@@ -200,33 +200,19 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   z-index: 1;
 }
 
-.ink-cloud {
+.enso-ring {
   position: absolute;
-  width: min(78vw, 82vh, 720px);
-  aspect-ratio: 1561 / 1008;
+  width: min(72vw, 70vh, 620px);
+  height: auto;
+  opacity: 0.96;
   pointer-events: none;
-  transform: translateY(-1%);
-  transform-origin: center;
+  -webkit-user-select: none;
+  user-select: none;
+  transform: translateY(-1.5%);
   z-index: -1;
 }
 
-.ink-cloud > span {
-  position: absolute;
-  inset: 0;
-  background: var(--red);
-  -webkit-mask-image: url("./assets/ink-cloud.png");
-  mask-image: url("./assets/ink-cloud.png");
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  transform-origin: center;
-}
-.ink-cloud__bloom { opacity: 0.24; filter: blur(7px); transform: scale(1.045, 1.035); }
-.ink-cloud__pigment { opacity: 0.78; }
-.ink-cloud__grain { opacity: 0.22; transform: scale(0.985, 1.01) translate(-0.7%, 0.45%); }
+.hero-date[data-digits="2"] .enso-ring { width: min(72vw, 69vh, 600px); }
 
 .day-number {
   position: absolute;
@@ -361,33 +347,14 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   .light-presets button { width: 40px; height: 40px; }
   .day-number { font-size: clamp(250px, 66vw, 410px); }
   .day-number[data-digits="2"] { font-size: clamp(205px, 55vw, 350px); }
-  .ink-cloud { width: min(94vw, 74vh, 650px); }
+  .enso-ring { width: min(90vw, 68vh, 590px); }
+  .hero-date[data-digits="2"] .enso-ring { width: min(92vw, 68vh, 580px); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .ink-cloud { animation: ink-cloud-drift 58s ease-in-out infinite alternate; }
-  .ink-cloud__pigment { animation: ink-cloud-breathe 52s ease-in-out infinite alternate; }
-  .ink-cloud__bloom { animation: ink-cloud-spread 68s ease-in-out infinite alternate; }
-  .ink-cloud__grain { animation: ink-cloud-grain 61s ease-in-out infinite alternate-reverse; }
   .day-number.date-changed { animation: day-change 380ms ease-out; }
   .weather-main.updated { animation: weather-update 280ms ease-out; }
 }
 
-@keyframes ink-cloud-drift {
-  from { transform: translate3d(-0.55%, -1.3%, 0) rotate(-0.16deg); }
-  to { transform: translate3d(0.65%, -0.7%, 0) rotate(0.19deg); }
-}
-@keyframes ink-cloud-breathe {
-  from { opacity: 0.74; transform: scale(0.988, 0.994); }
-  to { opacity: 0.82; transform: scale(1.012, 1.018); }
-}
-@keyframes ink-cloud-spread {
-  from { opacity: 0.18; transform: scale(1.025, 1.02) translate(-0.45%, 0.25%); }
-  to { opacity: 0.3; transform: scale(1.075, 1.055) translate(0.4%, -0.3%); }
-}
-@keyframes ink-cloud-grain {
-  from { opacity: 0.15; transform: scale(0.97, 1) translate(0.8%, -0.4%); }
-  to { opacity: 0.27; transform: scale(1.01, 1.025) translate(-0.6%, 0.55%); }
-}
 @keyframes day-change { from { opacity: 0.3; transform: translate(-50%, calc(-54% + 8px)); } }
 @keyframes weather-update { from { opacity: 0.45; } }

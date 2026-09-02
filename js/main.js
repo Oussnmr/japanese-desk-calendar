@@ -30,7 +30,7 @@ const timeFormatter = new Intl.DateTimeFormat("en-GB", {
 
 const elements = Object.fromEntries(
   [
-    "year", "weekday-ja", "weekday-en", "date-small", "day-number", "month-number", "prayer-panel", "prayer-list",
+    "year", "weekday-ja", "weekday-en", "date-small", "hero-date", "day-number", "month-number", "prayer-panel", "prayer-list",
     "month-en", "mini-calendar", "clock", "weather-temp", "weather-condition",
     "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
     "light-controls", "light-power", "light-chill", "light-bright", "light-status",
@@ -138,7 +138,9 @@ function renderDate(parts, animate = false) {
   elements["weekday-en"].dataset.label = weekdayEn;
   elements["date-small"].textContent = `${day} · ${MONTHS_EN[month - 1]}`;
   elements["day-number"].textContent = day;
-  elements["day-number"].dataset.digits = String(day).length;
+  const digitCount = String(day).length;
+  elements["hero-date"].dataset.digits = digitCount;
+  elements["day-number"].dataset.digits = digitCount;
   elements["month-number"].textContent = month;
   elements["month-en"].textContent = MONTHS_EN[month - 1];
   renderMonthCalendar(elements["mini-calendar"], year, month, day);

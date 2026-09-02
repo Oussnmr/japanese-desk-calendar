@@ -243,8 +243,13 @@ async function refreshPrayers() {
     if (!response.ok) throw new Error("Prayer times unavailable");
     const { prayers } = await response.json();
     const rows = prayers.map(({ label, time, iqama }) => {
+      const [timeHours, timeMinutes] = time.split(":").map(Number);
+      const [iqamaHours, iqamaMinutes] = iqama.split(":").map(Number);
+      const prayerMinutes = timeHours * 60 + timeMinutes;
+      const iqamaTotal = iqamaHours * 60 + iqamaMinutes;
+      const waitMinutes = (iqamaTotal - prayerMinutes + 1440) % 1440;
       const row = document.createElement("div");
-      for (const value of [label, time, iqama]) {
+      for (const value of [label, time, `+${waitMinutes}`]) {
         const span = document.createElement("span");
         span.textContent = value;
         row.append(span);

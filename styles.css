@@ -288,11 +288,11 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
 .location b { font-family: var(--japanese-font); font-size: clamp(16px, 1.8vw, 22px); font-weight: 400; }
 .location span { font-family: var(--latin-font); }
 .location span, .clock-label { font-size: clamp(8px, 0.9vw, 11px); font-weight: 400; letter-spacing: 0.08em; }
-.clock-wrap { position: relative; justify-self: center; width: clamp(330px, 38vw, 450px); }
-.clock { display: grid; grid-template-columns: .62em .62em .28em .62em .62em .28em .62em .62em; justify-content: center; width: 100%; font-family: var(--numeral-font); font-size: clamp(50px, 8.4vw, 98px); line-height: 0.9; font-weight: 400; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.clock-wrap { position: relative; justify-self: center; width: clamp(520px, 58vw, 620px); }
+.clock { display: grid; grid-template-columns: 1em 1em .32em 1em 1em .32em 1em 1em; justify-content: center; width: 100%; font-family: var(--numeral-font); font-size: clamp(50px, 8.4vw, 98px); line-height: 0.9; font-weight: 400; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .clock-slot { display: block; text-align: center; }
 .clock-separator { transform: translateY(-0.015em); }
-.stopwatch { position: absolute; top: 50%; left: calc(100% - clamp(16px, 1.8vw, 22px)); transform: translateY(-50%); color: var(--red); font-family: var(--numeral-font); font-size: clamp(25px, 4.2vw, 49px); line-height: 0.9; letter-spacing: -0.055em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stopwatch { position: absolute; top: 50%; left: calc(100% + clamp(8px, 1vw, 14px)); transform: translateY(-50%); color: var(--red); font-family: var(--numeral-font); font-size: clamp(25px, 4.2vw, 49px); line-height: 0.9; letter-spacing: -0.055em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .clock-label { align-self: end; margin: 0 0 2px; text-align: right; line-height: 1.35; }
 .clock-label { font-family: var(--japanese-font); }
 .clock-label span { color: var(--red); }
@@ -317,8 +317,8 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   .stopwatch-controls { gap: 2px; }
   .stopwatch-controls button { min-width: 36px; padding-inline: 2px; }
   .clock { font-size: clamp(40px, 12vw, 72px); }
-  .clock-wrap { width: min(100%, 360px); }
-  .stopwatch { left: calc(100% - 8px); font-size: clamp(20px, 6vw, 36px); }
+  .clock-wrap { width: min(100%, 520px); }
+  .stopwatch { left: calc(100% + 8px); font-size: clamp(20px, 6vw, 36px); }
   .clock-label { display: none; }
   .light-control { gap: 4px; }
   .day-number { font-size: clamp(250px, 66vw, 410px); }

@@ -57,9 +57,27 @@ body {
 }
 
 .weekday-en {
+  position: relative;
+  color: transparent;
   font-size: clamp(21px, 2.35vw, 28px);
   line-height: 1;
   letter-spacing: 0.025em;
+}
+
+.weekday-en::after {
+  content: attr(data-label);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  color: var(--red);
+  font: inherit;
+  line-height: 0.92;
+  letter-spacing: 0.015em;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  white-space: normal;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  transform-origin: center;
 }
 
 .hero-date {
@@ -110,7 +128,6 @@ body {
 
   /* Keep the Japanese weekday fixed and move only the Latin label away from it. */
   .weekday-en {
-    position: relative;
     left: 28px;
   }
 

@@ -1,9 +1,10 @@
-import { renderMonthCalendar } from "./calendar.js?v=5";
-import { loadWeather, weatherLabel } from "./weather.js?v=5";
+import { renderMonthCalendar } from "./calendar.js?v=6";
+import { loadWeather, weatherLabel } from "./weather.js?v=6";
 
 const TIME_ZONE = "Europe/Brussels";
 const WEATHER_REFRESH_MS = 20 * 60 * 1000;
 const THEME_KEY = "jdc-theme";
+const BRIDGE_KEY = "jdc-light-bridge";
 const WEEKDAYS_JA = ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"];
 const WEEKDAYS_EN = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const MONTHS_EN = [
@@ -31,11 +32,62 @@ const elements = Object.fromEntries(
     "year", "weekday-ja", "weekday-en", "date-small", "day-number", "month-number",
     "month-en", "mini-calendar", "clock", "weather-temp", "weather-condition",
     "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
+    "light-on", "light-off", "light-status",
   ].map((id) => [id, document.getElementById(id)]),
 );
 
 let currentDateKey = "";
 let wakeLock = null;
+
+function bridgeUrl() {
+  try {
+    const requested = new URLSearchParams(window.location.search).get("bridge");
+    if (requested) {
+      const parsed = new URL(requested);
+      if (parsed.protocol === "http:") {
+        localStorage.setItem(BRIDGE_KEY, parsed.origin);
+        history.replaceState(null, "", `${location.pathname}${location.hash}`);
+      }
+    }
+    return localStorage.getItem(BRIDGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function showLightState(on, available = true) {
+  elements["light-on"].disabled = !available;
+  elements["light-off"].disabled = !available;
+  elements["light-on"].setAttribute("aria-pressed", String(available && on));
+  elements["light-off"].setAttribute("aria-pressed", String(available && !on));
+  elements["light-status"].textContent = available ? (on ? "●" : "○") : "—";
+}
+
+async function requestLight(path) {
+  const base = bridgeUrl();
+  if (!base) throw new Error("Bridge unavailable");
+  const response = await fetch(`${base}${path}`, { method: path === "/api/light/status" ? "GET" : "POST", cache: "no-store" });
+  if (!response.ok) throw new Error("Bridge unavailable");
+  return response.json();
+}
+
+async function refreshLight() {
+  try {
+    showLightState((await requestLight("/api/light/status")).on);
+  } catch {
+    showLightState(false, false);
+  }
+}
+
+async function setLight(on) {
+  elements["light-on"].disabled = true;
+  elements["light-off"].disabled = true;
+  try {
+    showLightState((await requestLight(on ? "/api/light/on" : "/api/light/off")).on);
+  } catch {
+    await refreshLight();
+  }
+}
 
 function applyTheme(theme, persist = false) {
   const isDark = theme === "dark";
@@ -128,13 +180,16 @@ applyTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light")
 elements["theme-toggle"].addEventListener("click", () => {
   applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
 });
+elements["light-on"].addEventListener("click", () => setLight(true));
+elements["light-off"].addEventListener("click", () => setLight(false));
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js?v=5").catch(() => {}));
+  window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js?v=6").catch(() => {}));
 }
 
 tick();
 setInterval(tick, 1000);
 refreshWeather();
 setInterval(refreshWeather, WEATHER_REFRESH_MS);
+refreshLight();
 requestWakeLock();

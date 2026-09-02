@@ -12,4 +12,8 @@ Run locally with:
 .\.venv\Scripts\python.exe .\bridge.py
 ```
 
-It intentionally has no calendar integration: the hosted HTTPS calendar cannot reliably call a local HTTP service from iPad Safari.
+The calendar uses a per-device bridge address because the hosted site must not publish a private LAN address.
+
+To configure the calendar on one device without publishing a LAN address, open the
+calendar once with `?bridge=http://PC-LAN-IP:8787`. The address is then stored only
+in that browser's local storage.

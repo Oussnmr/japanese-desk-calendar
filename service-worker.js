@@ -1,15 +1,15 @@
-const CACHE_NAME = "japanese-desk-calendar-v5";
+const CACHE_NAME = "japanese-desk-calendar-v6";
 const OFFLINE_URL = new URL("./index.html", self.registration.scope).href;
 const LOCAL_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=5",
-  "./js/main.js?v=5",
-  "./js/calendar.js?v=5",
-  "./js/weather.js?v=5",
-  "./fonts/KatanaCalendar-Regular.ttf?v=5",
-  "./fonts/ArchivoBlack-Regular.ttf?v=5",
-  "./fonts/ShipporiAntiqueB1-JDC.ttf?v=5",
+  "./styles.css?v=6",
+  "./js/main.js?v=6",
+  "./js/calendar.js?v=6",
+  "./js/weather.js?v=6",
+  "./fonts/KatanaCalendar-Regular.ttf?v=6",
+  "./fonts/ArchivoBlack-Regular.ttf?v=6",
+  "./fonts/ShipporiAntiqueB1-JDC.ttf?v=6",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

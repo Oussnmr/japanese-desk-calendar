@@ -62,6 +62,8 @@ class BridgeHandler(BaseHTTPRequestHandler):
         if origin == ALLOWED_ORIGIN:
             self.send_header("Access-Control-Allow-Origin", ALLOWED_ORIGIN)
             self.send_header("Vary", "Origin")
+        if self.headers.get("Access-Control-Request-Private-Network") == "true":
+            self.send_header("Access-Control-Allow-Private-Network", "true")
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
 

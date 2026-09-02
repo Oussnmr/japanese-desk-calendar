@@ -110,6 +110,16 @@ body {
 .edition span, .timezone span { color: var(--muted); font-family: var(--latin-font); font-weight: 400; }
 .timezone { font-family: var(--japanese-font); text-align: right; }
 .masthead-tools { display: flex; align-items: flex-start; justify-content: flex-end; gap: clamp(9px, 1.2vw, 16px); }
+.masthead-meta { display: grid; justify-items: end; gap: 3px; }
+.light-control { display: flex; align-items: center; gap: 6px; min-height: 16px; color: var(--muted); }
+.light-title { display: inline-flex; align-items: baseline; gap: 3px; margin-right: 1px; font-size: 8px; letter-spacing: 0.08em; }
+.light-title b { color: var(--red); font-family: var(--japanese-font); font-size: 11px; font-weight: 400; }
+.light-title i { font-family: var(--latin-font); font-style: normal; }
+.light-control button { appearance: none; min-width: 20px; margin: 0; padding: 1px 0; border: 0; color: inherit; background: transparent; font-family: var(--latin-font); font-size: 9px; letter-spacing: 0.06em; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.light-control button:disabled { cursor: default; opacity: 0.38; }
+.light-control button[aria-pressed="true"] { color: var(--red); }
+.light-control button:focus-visible { outline: 1px solid var(--red); outline-offset: 2px; }
+.light-status { min-width: 6px; color: var(--red); font-family: var(--latin-font); font-size: 9px; }
 .theme-toggle {
   -webkit-appearance: none;
   appearance: none;
@@ -320,6 +330,7 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   .time-band { grid-row: 4; grid-template-columns: 100px minmax(220px, 1fr); column-gap: 18px; }
   .clock { font-size: clamp(40px, 12vw, 72px); }
   .clock-label { display: none; }
+  .light-control { gap: 4px; }
   .day-number { font-size: clamp(250px, 66vw, 410px); }
   .day-number[data-digits="2"] { font-size: clamp(205px, 55vw, 350px); }
   .sun-disc { width: min(72vw, 390px); }

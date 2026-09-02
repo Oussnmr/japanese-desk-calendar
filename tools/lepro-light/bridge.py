@@ -74,10 +74,7 @@ def status():
 def static_file_for(request_path):
     """Resolve only the public calendar assets; never expose tools/ or .env."""
     path = unquote(urlsplit(request_path).path)
-    if path == "/":
-        relative = Path("index.html")
-    else:
-        relative = Path(path.lstrip("/"))
+    relative = Path(path.lstrip("/"))
 
     if not relative.parts or ".." in relative.parts:
         return None
@@ -132,7 +129,14 @@ class BridgeHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        path = urlsplit(self.path).path
+        path = unquote(urlsplit(self.path).path)
+
+        # Keep the entry page explicit. This avoids URL/path edge cases on Windows
+        # and guarantees that the LAN root always serves the calendar itself.
+        if path in {"", "/"}:
+            self.respond_file(PROJECT_ROOT / "index.html")
+            return
+
         if path == "/api/light/status":
             try:
                 self.respond_json(200, status())

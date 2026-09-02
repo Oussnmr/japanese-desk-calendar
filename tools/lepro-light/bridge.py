@@ -10,10 +10,20 @@ from urllib.parse import unquote, urlsplit
 import tinytuya
 
 ROOT = Path(__file__).resolve().parent
-PROJECT_ROOT = ROOT.parents[1]
 ALLOWED_ORIGIN = "https://oussnmr.github.io"
 STATIC_ROOT_FILES = {"index.html", "styles.css", "manifest.webmanifest", "service-worker.js"}
 STATIC_DIRS = {"js", "icons", "fonts"}
+
+
+def find_project_root():
+    """Find the calendar root robustly instead of assuming a fixed parent depth."""
+    for candidate in (ROOT, *ROOT.parents):
+        if (candidate / "index.html").is_file() and (candidate / "js").is_dir():
+            return candidate.resolve()
+    raise RuntimeError("Calendar project root not found")
+
+
+PROJECT_ROOT = find_project_root()
 
 
 def load_env():
@@ -155,5 +165,6 @@ class BridgeHandler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     port = int(CONFIG.get("BRIDGE_PORT", "8787"))
     host = CONFIG.get("BRIDGE_HOST", "127.0.0.1")
+    print(f"Serving calendar from: {PROJECT_ROOT}")
     print(f"Japanese Desk Calendar + Lepro bridge: http://{host}:{port}/")
     ThreadingHTTPServer((host, port), BridgeHandler).serve_forever()

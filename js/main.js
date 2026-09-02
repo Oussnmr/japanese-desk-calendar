@@ -4,6 +4,7 @@ import { loadWeather, weatherLabel } from "./weather.js";
 const TIME_ZONE = "Europe/Brussels";
 const WEATHER_REFRESH_MS = 20 * 60 * 1000;
 const LIGHT_REFRESH_MS = 30 * 1000;
+const PRAYER_REFRESH_MS = 30 * 60 * 1000;
 const THEME_KEY = "jdc-theme";
 const WEEKDAYS_JA = ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"];
 const WEEKDAYS_EN = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
@@ -29,7 +30,7 @@ const timeFormatter = new Intl.DateTimeFormat("en-GB", {
 
 const elements = Object.fromEntries(
   [
-    "year", "weekday-ja", "weekday-en", "date-small", "day-number", "month-number",
+    "year", "weekday-ja", "weekday-en", "date-small", "day-number", "month-number", "prayer-panel", "prayer-list",
     "month-en", "mini-calendar", "clock", "weather-temp", "weather-condition",
     "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
     "light-controls", "light-power", "light-chill", "light-bright", "light-status",
@@ -236,6 +237,27 @@ async function refreshWeather() {
   }
 }
 
+async function refreshPrayers() {
+  try {
+    const response = await fetch("/api/prayers", { cache: "no-store" });
+    if (!response.ok) throw new Error("Prayer times unavailable");
+    const { prayers } = await response.json();
+    const rows = prayers.map(({ label, time, iqama }) => {
+      const row = document.createElement("div");
+      for (const value of [label, time, iqama]) {
+        const span = document.createElement("span");
+        span.textContent = value;
+        row.append(span);
+      }
+      return row;
+    });
+    elements["prayer-list"].replaceChildren(...rows);
+    elements["prayer-panel"].hidden = false;
+  } catch {
+    if (!elements["prayer-list"].children.length) elements["prayer-panel"].hidden = true;
+  }
+}
+
 async function requestWakeLock() {
   if (!("wakeLock" in navigator) || document.visibilityState !== "visible") return;
   try {
@@ -268,6 +290,8 @@ tick();
 setInterval(tick, 1000);
 refreshWeather();
 setInterval(refreshWeather, WEATHER_REFRESH_MS);
+refreshPrayers();
+setInterval(refreshPrayers, PRAYER_REFRESH_MS);
 refreshLight();
 setInterval(refreshLight, LIGHT_REFRESH_MS);
 requestWakeLock();

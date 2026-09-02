@@ -1,4 +1,5 @@
 import { LIGHT_DPS, commandsForPreset, normalizeLightStatus } from "./light-model.js";
+import { parseMawaqitPrayers } from "./prayer-model.js";
 
 const REGION_HOSTS = {
   cn: "openapi.tuyacn.com",
@@ -11,7 +12,10 @@ const REGION_HOSTS = {
 };
 
 let tokenCache = null;
+let prayerCache = null;
 const encoder = new TextEncoder();
+const PRAYER_URL = "https://mawaqit.net/fr/masjid-al-abidin-bruxelles-1000-belgium";
+const PRAYER_CACHE_MS = 15 * 60 * 1000;
 
 function json(body, status = 200, headers = {}) {
   return new Response(JSON.stringify(body), {
@@ -153,6 +157,20 @@ async function setLightPreset(env, name) {
   return sendLightCommands(env, commandsForPreset(name), (state) => state.preset === name);
 }
 
+async function prayerTimes() {
+  if (prayerCache?.expiresAt > Date.now()) return prayerCache.value;
+  try {
+    const response = await fetch(PRAYER_URL, { headers: { accept: "text/html" } });
+    if (!response.ok) throw new Error("Mawaqit request failed");
+    const value = parseMawaqitPrayers(await response.text());
+    prayerCache = { value, expiresAt: Date.now() + PRAYER_CACHE_MS };
+    return value;
+  } catch (error) {
+    if (prayerCache?.value) return { ...prayerCache.value, stale: true };
+    throw error;
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -169,6 +187,14 @@ export default {
           "cache-control": "no-store",
         },
       });
+    }
+
+    if (url.pathname === "/api/prayers" && request.method === "GET") {
+      try {
+        return json(await prayerTimes(), 200, { "cache-control": "public, max-age=300" });
+      } catch {
+        return json({ error: "Prayer times unavailable" }, 503);
+      }
     }
 
     if (!url.pathname.startsWith("/api/light/")) return env.ASSETS.fetch(request);

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build-static.mjs",
-    "check": "node --check src/worker.js && node --check src/light-model.js && node --check js/main.js && node --test",
+    "check": "node --check src/worker.js && node --check src/light-model.js && node --check src/prayer-model.js && node --check js/main.js && node --test",
     "deploy": "npm run build && npx wrangler deploy"
   },
   "devDependencies": {

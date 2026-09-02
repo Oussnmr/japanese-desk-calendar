@@ -121,6 +121,7 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
 .year { font-family: var(--numeral-font); font-size: clamp(38px, 5vw, 62px); line-height: 0.82; font-weight: 400; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
 
 .weekday-panel {
+  position: relative;
   grid-column: 1;
   grid-row: 2;
   display: grid;
@@ -129,6 +130,15 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   padding: 0 0 clamp(12px, 2vh, 22px);
   z-index: 2;
 }
+
+.prayer-panel { position: absolute; top: clamp(8px, 1.4vh, 14px); left: 4px; width: 68px; color: var(--muted); font-family: var(--latin-font); font-variant-numeric: tabular-nums; }
+.prayer-panel[hidden] { display: none; }
+.prayer-panel p { display: flex; align-items: baseline; gap: 3px; margin: 0 0 5px; padding-bottom: 3px; border-bottom: 1px solid var(--red); font-size: 8px; letter-spacing: 0.08em; }
+.prayer-panel p span { color: var(--red); font-family: var(--japanese-font); font-size: 10px; }
+.prayer-list { display: grid; gap: 2px; }
+.prayer-list div { display: grid; grid-template-columns: 7px 1fr 1fr; column-gap: 2px; align-items: baseline; font-size: clamp(7px, 0.62vw, 9px); line-height: 1.25; white-space: nowrap; }
+.prayer-list div span:first-child { color: var(--red); }
+.weekday-ja { justify-self: end; }
 
 .weekday-ja {
   grid-row: 1;
@@ -310,6 +320,8 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   }
   .hero-date { grid-column: 2; grid-row: 2; }
   .weekday-panel { grid-column: 1; grid-row: 2; }
+  .prayer-panel { left: 2px; width: 58px; }
+  .prayer-list div { font-size: 7px; }
   .month-panel { grid-column: 1 / -1; grid-row: 3; display: grid; grid-template-columns: 0.7fr 1.3fr; gap: 24px; border-top: 1px solid var(--ink); }
   .month-heading { align-self: start; }
   .month-rule { display: none; }

@@ -1,13 +1,16 @@
-const WEEKDAYS_JA_SHORT = ["日", "月", "火", "水", "木", "金", "土"];
+const WEEKDAYS_EN_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
 
 export function renderMonthCalendar(container, year, month, currentDay) {
   const firstWeekday = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const currentWeekday = (firstWeekday + currentDay - 1) % 7;
   const cells = [];
 
   for (let weekday = 0; weekday < 7; weekday += 1) {
-    const sundayClass = weekday === 0 ? " sunday" : "";
-    cells.push(`<span class="weekday${sundayClass}">${WEEKDAYS_JA_SHORT[weekday]}</span>`);
+    const classes = ["weekday", weekday === 0 ? "sunday" : "", weekday === currentWeekday ? "current-weekday" : ""]
+      .filter(Boolean)
+      .join(" ");
+    cells.push(`<span class="${classes}">${WEEKDAYS_EN_SHORT[weekday]}</span>`);
   }
 
   for (let blank = 0; blank < firstWeekday; blank += 1) {

@@ -6,6 +6,8 @@ A small, dependency-free Japanese-inspired daily calendar designed for an iPad i
 
 Static HTML and CSS with three small vanilla JavaScript modules. A service worker caches local assets for offline opening; the last valid weather reading is stored in `localStorage`.
 
+The display typography uses the locally bundled **Dela Gothic One** font, distributed under the SIL Open Font License in `fonts/OFL-DelaGothicOne.txt`.
+
 ## Run locally
 
 Serve the folder over HTTP (opening `index.html` directly will not enable the service worker):

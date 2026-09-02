@@ -6,6 +6,7 @@ const root = resolve(import.meta.dirname, "..");
 const source = resolve(root, "tools/lepro-light/.env");
 const target = resolve(root, "tools/cloudflare/.cloudflare-secrets.json");
 const localConfig = resolve(root, "tools/cloudflare/.env");
+const setupUrl = resolve(root, "tools/cloudflare/setup-url.txt");
 const required = ["TUYA_API_REGION", "TUYA_API_KEY", "TUYA_API_SECRET", "TUYA_DEVICE_ID"];
 const parse = (text) => Object.fromEntries(
   text.split(/\r?\n/)
@@ -26,4 +27,6 @@ const secrets = {
 
 await writeFile(localConfig, `${Object.entries(secrets).map(([key, value]) => `${key}=${value}`).join("\n")}\n`, "utf8");
 await writeFile(target, `${JSON.stringify(secrets)}\n`, "utf8");
+const origin = process.env.CALENDAR_ORIGIN || "https://japanese-desk-calendar.oussama-nemri.workers.dev";
+await writeFile(setupUrl, `${origin}/setup/${secrets.LIGHT_ACCESS_TOKEN}\n`, "utf8");
 console.log("Prepared local Cloudflare secrets without printing their values.");

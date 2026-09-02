@@ -36,8 +36,10 @@ function cookie(request, name) {
 }
 
 function authorized(request, env) {
-  const bearer = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
-  return equalSecrets(bearer, env.LIGHT_ACCESS_TOKEN) || equalSecrets(cookie(request, "jdc_light"), env.LIGHT_ACCESS_TOKEN);
+  const bearer = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1] || "";
+  const session = cookie(request, "jdc_light") || "";
+  return (bearer.length > 0 && equalSecrets(bearer, env.LIGHT_ACCESS_TOKEN))
+    || (session.length > 0 && equalSecrets(session, env.LIGHT_ACCESS_TOKEN));
 }
 
 async function digest(value) {

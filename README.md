@@ -1,36 +1,54 @@
 # Japanese Desk Calendar
 
-A small, dependency-free Japanese-inspired daily calendar designed for an iPad in landscape mode. It shows the current Brussels date and time, a monthly calendar, and current Open-Meteo weather.
+A dependency-free Japanese editorial desk calendar for an iPad in landscape.
+It displays Brussels date/time, Open-Meteo weather, a locally persisted day/night
+preference, and secure control of one Tuya light.
 
-## Architecture
+## Final architecture
 
-Static HTML and CSS with three small vanilla JavaScript modules. A service worker caches local assets for offline opening; the last valid weather reading is stored in `localStorage`.
+One Cloudflare Worker serves the static PWA and the same-origin HTTPS API:
 
-All typefaces are bundled locally for offline use. Latin labels use the custom **Katana Calendar** font recreated from the shared design; display numerals use **Archivo Black**; and Japanese text uses a compact project subset of **Shippori Antique B1**. The two open-source font licenses are included in `fonts/`.
-
-## Run locally
-
-Serve the folder over HTTP (opening `index.html` directly will not enable the service worker):
-
-```sh
-python -m http.server 8000
+```
+iPad PWA → Cloudflare Worker → Tuya Cloud → light
 ```
 
-Then open `http://localhost:8000`.
+The browser only calls `GET /api/light/status`, `POST /api/light/on`, and
+`POST /api/light/off`. Tuya credentials never leave the Worker secrets store.
+The personal control token is installed once as an HttpOnly same-site cookie by
+visiting a private setup URL on the iPad.
 
-## Deploy with GitHub Pages
+`tools/lepro-light` remains a local Python fallback for diagnostics. It is not
+needed once the Cloudflare deployment is live.
 
-In the repository, open **Settings → Pages**, choose **Deploy from a branch**, then select **main** and **/(root)**. All project paths are relative and work below a repository subpath.
+## Development
 
-## Install on iPad
+```sh
+npm run build
+npm run check
+```
 
-In Safari, open the deployed site, tap **Share → Add to Home Screen**, then launch it from the new icon. It opens standalone in landscape orientation.
+`npm run build` creates the ignored `dist/` directory containing only public
+assets. This deliberate allow-list prevents tooling, local `.env` files, and
+unrelated font sources from being uploaded.
 
-The app requests a screen wake lock when the browser supports it, but iPadOS may release it due to system policy or power state. For a permanent desk display, you can also use **Settings → Display & Brightness → Auto-Lock → Never** while the iPad is powered.
+## Deploy
 
-## Notes
+1. Log in once with `npx wrangler login` and register a `workers.dev` subdomain.
+2. Keep Tuya values only in `tools/lepro-light/.env` locally.
+3. Run `node scripts/prepare-cloud-secrets.mjs`, then upload its ignored output
+   with `Get-Content -Raw tools/cloudflare/.cloudflare-secrets.json | npx wrangler secret bulk`.
+4. Run `npm run deploy`.
 
-- Date and time always use `Europe/Brussels`, regardless of the device time zone.
-- Weather refreshes every 20 minutes and gracefully falls back to the last valid reading.
-- The calendar remains fully functional without weather or network access.
-- The discreet sun/moon control switches themes and remembers the choice on the device.
+After deployment, open the generated private `/setup/<personal-token>` URL on
+the iPad once. It redirects to the calendar and authorizes only that browser.
+
+## iPad use
+
+In Safari, open the deployed HTTPS URL, choose **Share → Add to Home Screen**,
+then launch it from the new icon. The manifest requests standalone landscape
+display. Date/time always use `Europe/Brussels`; weather refreshes every 20
+minutes and uses the latest cached reading if offline.
+
+The screen wake lock is best-effort because iPadOS may release it due to power
+or system policy. For an always-on desk display, use **Settings → Display &
+Brightness → Auto-Lock → Never** while the iPad is powered.

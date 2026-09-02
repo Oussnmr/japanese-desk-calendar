@@ -4,3 +4,9 @@ Thumbs.db
 tools/lepro-light/.env
 tools/lepro-light/.venv/
 tools/lepro-light/__pycache__/
+node_modules/
+dist/
+.wrangler/
+tools/cloudflare/.env
+tools/cloudflare/.cloudflare-secrets.json
+tools/cloudflare/setup-url.txt

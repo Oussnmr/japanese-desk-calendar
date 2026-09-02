@@ -1,27 +1,3 @@
-@font-face {
-  font-family: "Katana Calendar";
-  src: url("./fonts/KatanaCalendar-Regular.ttf?v=5") format("truetype");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Archivo Black";
-  src: url("./fonts/ArchivoBlack-Regular.ttf?v=5") format("truetype");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Shippori Antique B1 JDC";
-  src: url("./fonts/ShipporiAntiqueB1-JDC.ttf?v=5") format("truetype");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-
 :root {
   color-scheme: light;
   --paper: #f5f2ea;
@@ -30,9 +6,9 @@
   --muted: #4c4942;
   --hairline: rgba(17, 16, 14, 0.34);
   --frame: rgba(17, 16, 14, 0.18);
-  --latin-font: "Katana Calendar", "Arial Narrow", sans-serif;
-  --numeral-font: "Archivo Black", "Arial Black", sans-serif;
-  --japanese-font: "Shippori Antique B1 JDC", "Yu Gothic", sans-serif;
+  --latin-font: "Nemri Techno", "Arial Narrow", sans-serif;
+  --numeral-font: "Nemri Techno", "Arial Narrow", sans-serif;
+  --japanese-font: "Nemri JPN Brush", "Yu Gothic", sans-serif;
   --left-col: clamp(132px, 15vw, 178px);
   --right-col: clamp(232px, 24vw, 292px);
   --layout-gap: clamp(18px, 2.7vw, 38px);

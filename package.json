@@ -1,0 +1,13 @@
+{
+  "name": "japanese-desk-calendar",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-static.mjs",
+    "check": "node --check src/worker.js && node --check js/main.js",
+    "deploy": "npm run build && npx wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.20.0"
+  }
+}

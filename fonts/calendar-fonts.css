@@ -1,0 +1,33 @@
+@font-face {
+  font-family: "Nemri Techno";
+  src: url("./NemriTechno-Regular.ttf?v=7") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Nemri JPN Brush";
+  src: url("./NemriJPN-Brush.ttf?v=7") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --latin-font: "Nemri Techno", "Nemri JPN Brush", "Arial Narrow", sans-serif;
+  --numeral-font: "Nemri Techno", "Arial Narrow", sans-serif;
+  --japanese-font: "Nemri JPN Brush", "Yu Gothic", "Hiragino Sans", sans-serif;
+  font-family: var(--latin-font);
+}
+
+html,
+body {
+  font-family: var(--latin-font);
+}
+
+/* The base stylesheet forces this separator to generic sans-serif. Keep every
+   visible Latin glyph on the custom calendar face instead. */
+.mini-grid .weekday em {
+  font-family: var(--latin-font);
+}

@@ -35,6 +35,7 @@ jobs:
       - name: Build static assets
         run: npm run build
 
+      # Deploy every main-branch revision to the production Worker.
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:

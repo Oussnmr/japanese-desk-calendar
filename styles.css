@@ -289,7 +289,9 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
 .location span { font-family: var(--latin-font); }
 .location span, .clock-label { font-size: clamp(8px, 0.9vw, 11px); font-weight: 400; letter-spacing: 0.08em; }
 .clock-wrap { position: relative; justify-self: center; width: clamp(296px, 42vw, 497px); }
-.clock { display: block; width: max-content; margin: 0; font-family: var(--numeral-font); font-size: clamp(50px, 7.4vw, 89px); line-height: 0.9; font-weight: 400; letter-spacing: -0.055em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.clock { display: grid; grid-template-columns: .84em .84em .28em .84em .84em .28em .84em .84em; justify-content: center; width: 100%; font-family: var(--numeral-font); font-size: clamp(50px, 7.4vw, 89px); line-height: 0.9; font-weight: 400; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.clock-slot { display: block; text-align: center; }
+.clock-separator { transform: translateY(-0.015em); }
 .stopwatch { position: absolute; top: 50%; left: calc(100% + clamp(72px, 7vw, 96px)); transform: translateY(-50%); color: var(--red); font-family: var(--numeral-font); font-size: clamp(25px, 3.55vw, 42px); line-height: 0.9; letter-spacing: -0.055em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .clock-label { align-self: end; margin: 0 0 2px; text-align: right; line-height: 1.35; }
 .clock-label { font-family: var(--japanese-font); }

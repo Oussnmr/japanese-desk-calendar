@@ -5,8 +5,11 @@ This local bridge keeps Tuya Cloud credentials in `.env`, controls the light, an
 API:
 
 - `GET /api/light/status`
+- `POST /api/light/toggle`
 - `POST /api/light/on`
 - `POST /api/light/off`
+- `POST /api/light/preset/chill`
+- `POST /api/light/preset/bright`
 
 Run locally from this folder with:
 

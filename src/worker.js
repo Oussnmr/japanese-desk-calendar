@@ -1,3 +1,5 @@
+import { LIGHT_DPS, commandsForPreset, normalizeLightStatus } from "./light-model.js";
+
 const REGION_HOSTS = {
   cn: "openapi.tuyacn.com",
   us: "openapi.tuyaus.com",
@@ -117,15 +119,38 @@ async function deviceRequest(env, path, options) {
 async function lightStatus(env) {
   const result = await deviceRequest(env, `/v1.0/iot-03/devices/${env.TUYA_DEVICE_ID}/status`);
   const values = Object.fromEntries(result.map((item) => [item.code, item.value]));
-  return { on: Boolean(values.switch_led ?? values.switch_1 ?? false) };
+  return normalizeLightStatus(values);
+}
+
+async function sendLightCommands(env, commands, confirmed) {
+  await deviceRequest(env, `/v1.0/iot-03/devices/${env.TUYA_DEVICE_ID}/commands`, {
+    method: "POST",
+    body: { commands },
+  });
+  let state = null;
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    state = await lightStatus(env);
+    if (confirmed(state)) return state;
+  }
+  throw new Error("Light state confirmation timed out");
 }
 
 async function setLight(env, on) {
-  await deviceRequest(env, `/v1.0/iot-03/devices/${env.TUYA_DEVICE_ID}/commands`, {
-    method: "POST",
-    body: { commands: [{ code: "switch_led", value: on }] },
-  });
-  return { on };
+  return sendLightCommands(
+    env,
+    [{ code: LIGHT_DPS.power, value: on }],
+    (state) => state.on === on,
+  );
+}
+
+async function toggleLight(env) {
+  const state = await lightStatus(env);
+  return setLight(env, !state.on);
+}
+
+async function setLightPreset(env, name) {
+  return sendLightCommands(env, commandsForPreset(name), (state) => state.preset === name);
 }
 
 export default {
@@ -153,6 +178,9 @@ export default {
 
     try {
       if (url.pathname === "/api/light/status" && request.method === "GET") return json(await lightStatus(env));
+      if (url.pathname === "/api/light/toggle" && request.method === "POST") return json(await toggleLight(env));
+      if (url.pathname === "/api/light/preset/chill" && request.method === "POST") return json(await setLightPreset(env, "chill"));
+      if (url.pathname === "/api/light/preset/bright" && request.method === "POST") return json(await setLightPreset(env, "bright"));
       if (url.pathname === "/api/light/on" && request.method === "POST") return json(await setLight(env, true));
       if (url.pathname === "/api/light/off" && request.method === "POST") return json(await setLight(env, false));
       return json({ error: "Not found" }, 404);

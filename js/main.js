@@ -3,6 +3,7 @@ import { loadWeather, weatherLabel } from "./weather.js";
 
 const TIME_ZONE = "Europe/Brussels";
 const WEATHER_REFRESH_MS = 20 * 60 * 1000;
+const LIGHT_REFRESH_MS = 30 * 1000;
 const THEME_KEY = "jdc-theme";
 const WEEKDAYS_JA = ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"];
 const WEEKDAYS_EN = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
@@ -31,7 +32,8 @@ const elements = Object.fromEntries(
     "year", "weekday-ja", "weekday-en", "date-small", "day-number", "month-number",
     "month-en", "mini-calendar", "clock", "weather-temp", "weather-condition",
     "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
-    "light-on", "light-off", "light-status", "stopwatch", "stopwatch-toggle", "stopwatch-clear",
+    "light-controls", "light-power", "light-chill", "light-bright", "light-status",
+    "stopwatch", "stopwatch-toggle", "stopwatch-clear",
   ].map((id) => [id, document.getElementById(id)]),
 );
 
@@ -40,13 +42,30 @@ let wakeLock = null;
 let stopwatchElapsed = 0;
 let stopwatchStartedAt = null;
 let stopwatchTimer = null;
+let lightState = null;
+let lightAvailable = false;
+let lightPending = false;
 
-function showLightState(on, available = true) {
-  elements["light-on"].disabled = !available;
-  elements["light-off"].disabled = !available;
-  elements["light-on"].setAttribute("aria-pressed", String(available && on));
-  elements["light-off"].setAttribute("aria-pressed", String(available && !on));
-  elements["light-status"].textContent = available ? (on ? "●" : "○") : "—";
+function showLightState(state, available = true) {
+  lightState = state;
+  lightAvailable = available;
+  const on = available && Boolean(state?.on);
+  const disabled = !available || lightPending;
+  elements["light-power"].textContent = on ? "OFF" : "ON";
+  elements["light-power"].setAttribute("aria-label", on ? "Turn light off" : "Turn light on");
+  elements["light-power"].setAttribute("aria-pressed", String(on));
+  elements["light-chill"].setAttribute("aria-pressed", String(on && state?.preset === "chill"));
+  elements["light-bright"].setAttribute("aria-pressed", String(on && state?.preset === "bright"));
+  for (const id of ["light-power", "light-chill", "light-bright"]) elements[id].disabled = disabled;
+  elements["light-controls"].classList.toggle("is-unavailable", !available);
+  elements["light-status"].textContent = available ? "" : "—";
+}
+
+function setLightPending(pending) {
+  lightPending = pending;
+  elements["light-controls"].classList.toggle("is-pending", pending);
+  elements["light-controls"].setAttribute("aria-busy", String(pending));
+  showLightState(lightState, lightAvailable);
 }
 
 async function requestLight(path) {
@@ -59,21 +78,31 @@ async function requestLight(path) {
   return response.json();
 }
 
-async function refreshLight() {
+async function refreshLight(preserveOnError = false) {
+  if (lightPending) return false;
   try {
-    showLightState((await requestLight("/api/light/status")).on);
+    showLightState(await requestLight("/api/light/status"));
+    return true;
   } catch {
-    showLightState(false, false);
+    if (!preserveOnError) showLightState(null, false);
+    return false;
   }
 }
 
-async function setLight(on) {
-  elements["light-on"].disabled = true;
-  elements["light-off"].disabled = true;
+async function commandLight(path) {
+  if (lightPending) return;
+  const previousState = lightState;
+  const previousAvailable = lightAvailable;
+  setLightPending(true);
   try {
-    showLightState((await requestLight(on ? "/api/light/on" : "/api/light/off")).on);
+    showLightState(await requestLight(path));
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    setLightPending(false);
+    await refreshLight(true);
   } catch {
-    await refreshLight();
+    showLightState(previousState, previousAvailable);
+  } finally {
+    setLightPending(false);
   }
 }
 
@@ -225,8 +254,9 @@ applyTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light")
 elements["theme-toggle"].addEventListener("click", () => {
   applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
 });
-elements["light-on"].addEventListener("click", () => setLight(true));
-elements["light-off"].addEventListener("click", () => setLight(false));
+elements["light-power"].addEventListener("click", () => commandLight("/api/light/toggle"));
+elements["light-chill"].addEventListener("click", () => commandLight("/api/light/preset/chill"));
+elements["light-bright"].addEventListener("click", () => commandLight("/api/light/preset/bright"));
 elements["stopwatch-toggle"].addEventListener("click", toggleStopwatch);
 elements["stopwatch-clear"].addEventListener("click", clearStopwatch);
 
@@ -239,4 +269,5 @@ setInterval(tick, 1000);
 refreshWeather();
 setInterval(refreshWeather, WEATHER_REFRESH_MS);
 refreshLight();
+setInterval(refreshLight, LIGHT_REFRESH_MS);
 requestWakeLock();

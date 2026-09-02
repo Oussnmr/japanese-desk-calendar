@@ -87,15 +87,6 @@ body {
 .timezone { font-family: var(--japanese-font); text-align: right; }
 .masthead-tools { display: flex; align-items: flex-start; justify-content: flex-end; gap: clamp(9px, 1.2vw, 16px); }
 .masthead-meta { display: grid; justify-items: end; gap: 3px; }
-.light-control { display: flex; align-items: center; gap: 6px; min-height: 16px; color: var(--muted); }
-.light-title { display: inline-flex; align-items: baseline; gap: 3px; margin-right: 1px; font-size: 8px; letter-spacing: 0.08em; }
-.light-title b { color: var(--red); font-family: var(--japanese-font); font-size: 11px; font-weight: 400; }
-.light-title i { font-family: var(--latin-font); font-style: normal; }
-.light-control button { appearance: none; min-width: 20px; margin: 0; padding: 1px 0; border: 0; color: inherit; background: transparent; font-family: var(--latin-font); font-size: 9px; letter-spacing: 0.06em; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-.light-control button:disabled { cursor: default; opacity: 0.38; }
-.light-control button[aria-pressed="true"] { color: var(--red); }
-.light-control button:focus-visible { outline: 1px solid var(--red); outline-offset: 2px; }
-.light-status { min-width: 6px; color: var(--red); font-family: var(--latin-font); font-size: 9px; }
 .theme-toggle {
   -webkit-appearance: none;
   appearance: none;
@@ -178,6 +169,14 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
 .today-mark b { color: var(--red); font-family: var(--japanese-font); font-size: 26px; font-weight: 400; }
 .today-mark span { font-family: var(--latin-font); font-size: 13px; font-weight: 400; letter-spacing: 0.08em; }
 .date-small { font-family: var(--latin-font); font-size: 12px; font-weight: 400; letter-spacing: 0.08em; }
+.light-presets { position: relative; grid-column: 1 / -1; display: flex; flex-direction: column; align-items: flex-start; gap: clamp(6px, 0.9vh, 9px); margin: clamp(2px, 0.6vh, 6px) 0 0 4px; }
+.light-presets button { appearance: none; display: grid; place-items: center; width: clamp(42px, 3.8vw, 48px); height: clamp(42px, 3.8vw, 48px); margin: 0; padding: 0; border: 1px solid var(--hairline); border-radius: 50%; color: var(--ink); background: transparent; font-family: var(--latin-font); font-size: clamp(8px, 0.8vw, 10px); line-height: 1; letter-spacing: 0.03em; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: color 140ms ease, border-color 140ms ease, background-color 140ms ease, opacity 140ms ease; }
+.light-presets button[aria-pressed="true"] { border-color: var(--red); color: var(--paper); background: var(--red); }
+.light-presets button:focus-visible { outline: 1px solid var(--red); outline-offset: 3px; }
+.light-presets button:disabled { cursor: default; }
+.light-presets.is-pending button { opacity: 0.45; }
+.light-presets.is-unavailable button { opacity: 0.28; }
+.light-status { position: absolute; top: 0; left: clamp(50px, 4.5vw, 57px); color: var(--red); font-family: var(--latin-font); font-size: 10px; }
 
 .hero-date {
   position: relative;
@@ -323,7 +322,7 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   .clock { font-size: clamp(40px, 7.4vw, 72px); }
   .stopwatch { left: calc(100% + 32px); font-size: clamp(20px, 3.55vw, 36px); }
   .clock-label { display: none; }
-  .light-control { gap: 4px; }
+  .light-presets button { width: 40px; height: 40px; }
   .day-number { font-size: clamp(250px, 66vw, 410px); }
   .day-number[data-digits="2"] { font-size: clamp(205px, 55vw, 350px); }
   .sun-disc { width: min(72vw, 390px); }

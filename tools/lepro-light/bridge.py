@@ -3,6 +3,7 @@
 import json
 import mimetypes
 import os
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -13,6 +14,15 @@ ROOT = Path(__file__).resolve().parent
 ALLOWED_ORIGIN = "https://oussnmr.github.io"
 STATIC_ROOT_FILES = {"index.html", "styles.css", "manifest.webmanifest", "service-worker.js"}
 STATIC_DIRS = {"js", "icons", "fonts"}
+POWER_DP = "switch_led"
+MODE_DP = "work_mode"
+BRIGHTNESS_DP = "bright_value"
+TEMPERATURE_DP = "temp_value"
+BRIGHTNESS_MAX = 255
+CHILL_BRIGHTNESS = round(BRIGHTNESS_MAX * 0.25)
+CHILL_TEMPERATURE = 206
+BRIGHT_TEMPERATURE = 255
+PRESET_TOLERANCE = 3
 
 
 def find_project_root():
@@ -53,14 +63,46 @@ def cloud():
     )
 
 
-def power(value):
+def send_commands(commands, confirmed):
     response = cloud().sendcommand(
         CONFIG["TUYA_DEVICE_ID"],
-        {"commands": [{"code": "switch_led", "value": value}]},
+        {"commands": commands},
     )
     if not response.get("success"):
         raise RuntimeError("Tuya command was rejected")
-    return {"on": value}
+    state = None
+    for _attempt in range(6):
+        time.sleep(0.4)
+        state = status()
+        if confirmed(state):
+            return state
+    raise RuntimeError("Light state confirmation timed out")
+
+
+def power(value):
+    return send_commands(
+        [{"code": POWER_DP, "value": value}],
+        lambda state: state["on"] is value,
+    )
+
+
+def apply_preset(name):
+    presets = {
+        "chill": (CHILL_BRIGHTNESS, CHILL_TEMPERATURE),
+        "bright": (BRIGHTNESS_MAX, BRIGHT_TEMPERATURE),
+    }
+    if name not in presets:
+        raise RuntimeError("Unknown preset")
+    brightness, temperature = presets[name]
+    return send_commands(
+        [
+            {"code": POWER_DP, "value": True},
+            {"code": MODE_DP, "value": "white"},
+            {"code": BRIGHTNESS_DP, "value": brightness},
+            {"code": TEMPERATURE_DP, "value": temperature},
+        ],
+        lambda state: state["preset"] == name,
+    )
 
 
 def status():
@@ -68,7 +110,24 @@ def status():
     if not response.get("success"):
         raise RuntimeError("Tuya status request was rejected")
     result = {item["code"]: item["value"] for item in response.get("result", [])}
-    return {"on": bool(result.get("switch_led", result.get("switch_1", False)))}
+    on = bool(result.get(POWER_DP, False))
+    brightness_raw = result.get(BRIGHTNESS_DP)
+    temperature = result.get(TEMPERATURE_DP)
+    mode = result.get(MODE_DP)
+    preset = None
+    if on and mode == "white" and isinstance(brightness_raw, (int, float)) and isinstance(temperature, (int, float)):
+        if abs(brightness_raw - CHILL_BRIGHTNESS) <= PRESET_TOLERANCE and abs(temperature - CHILL_TEMPERATURE) <= PRESET_TOLERANCE:
+            preset = "chill"
+        elif abs(brightness_raw - BRIGHTNESS_MAX) <= PRESET_TOLERANCE and abs(temperature - BRIGHT_TEMPERATURE) <= PRESET_TOLERANCE:
+            preset = "bright"
+    brightness = round(brightness_raw / BRIGHTNESS_MAX * 100) if isinstance(brightness_raw, (int, float)) else None
+    return {
+        "on": on,
+        "brightness": brightness,
+        "temperature": temperature,
+        "workMode": mode,
+        "preset": preset,
+    }
 
 
 def static_file_for(request_path):
@@ -154,11 +213,17 @@ class BridgeHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         path = urlsplit(self.path).path
         actions = {"/api/light/on": True, "/api/light/off": False}
-        if path not in actions:
+        presets = {"/api/light/preset/chill": "chill", "/api/light/preset/bright": "bright"}
+        if path not in actions and path not in presets and path != "/api/light/toggle":
             self.respond_json(404, {"error": "not found"})
             return
         try:
-            self.respond_json(200, power(actions[path]))
+            if path == "/api/light/toggle":
+                self.respond_json(200, power(not status()["on"]))
+            elif path in presets:
+                self.respond_json(200, apply_preset(presets[path]))
+            else:
+                self.respond_json(200, power(actions[path]))
         except RuntimeError:
             self.respond_json(503, {"error": "unavailable"})
 

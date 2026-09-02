@@ -28,12 +28,6 @@
         <div class="masthead-tools">
           <div class="masthead-meta">
             <p class="timezone">欧州中央時間<br><span>EUROPE / BRUSSELS</span></p>
-            <section class="light-control" aria-label="Light control">
-              <span class="light-title"><b>照明</b><i>LIGHT</i></span>
-              <button id="light-on" type="button" aria-pressed="false" disabled>ON</button>
-              <button id="light-off" type="button" aria-pressed="false" disabled>OFF</button>
-              <span class="light-status" id="light-status" aria-live="polite">—</span>
-            </section>
           </div>
           <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Enable dark mode" aria-pressed="false">
             <span class="theme-sun" aria-hidden="true">☼</span>
@@ -48,6 +42,12 @@
         <div class="rule" aria-hidden="true"></div>
         <p class="today-mark"><b>今日</b><span>TODAY</span></p>
         <p class="date-small" id="date-small">2 · SEPTEMBER</p>
+        <section class="light-presets" id="light-controls" aria-label="Light controls" aria-busy="false">
+          <button id="light-power" type="button" aria-label="Turn light on" aria-pressed="false" disabled>ON</button>
+          <button id="light-chill" type="button" aria-pressed="false" disabled>CHILL</button>
+          <button id="light-bright" type="button" aria-pressed="false" disabled>BRIGHT</button>
+          <span class="light-status" id="light-status" aria-live="polite">—</span>
+        </section>
       </section>
 
       <section class="hero-date" aria-label="Current day">

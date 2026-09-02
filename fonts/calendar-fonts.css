@@ -107,6 +107,17 @@ body {
   .year { grid-column: 2; justify-self: center; }
   .masthead-tools { grid-column: 3; }
   .clock { justify-self: center; width: max-content; }
+
+  /* Keep the Japanese weekday fixed and move only the Latin label away from it. */
+  .weekday-en {
+    position: relative;
+    left: 28px;
+  }
+
+  /* The prayer heading rule should stop around the end of the red iqama values. */
+  .prayer-panel p {
+    width: 92px;
+  }
 }
 
 .mini-grid .weekday em {

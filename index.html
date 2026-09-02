@@ -55,29 +55,11 @@
       </section>
 
       <section class="hero-date" aria-label="Current day">
-        <svg class="ink-cloud" viewBox="0 0 640 430" aria-hidden="true" focusable="false">
-          <defs>
-            <filter id="ink-cloud-edge" x="-12%" y="-18%" width="124%" height="136%" color-interpolation-filters="sRGB">
-              <feTurbulence type="fractalNoise" baseFrequency="0.012 0.023" numOctaves="3" seed="19" result="edge-noise" />
-              <feDisplacementMap in="SourceGraphic" in2="edge-noise" scale="24" xChannelSelector="R" yChannelSelector="B" result="displaced" />
-              <feGaussianBlur in="displaced" stdDeviation="0.8" />
-            </filter>
-            <filter id="ink-cloud-wash" x="-18%" y="-28%" width="136%" height="156%" color-interpolation-filters="sRGB">
-              <feTurbulence type="fractalNoise" baseFrequency="0.009 0.018" numOctaves="2" seed="7" result="wash-noise" />
-              <feDisplacementMap in="SourceGraphic" in2="wash-noise" scale="34" xChannelSelector="R" yChannelSelector="G" result="washed" />
-              <feGaussianBlur in="washed" stdDeviation="8" />
-            </filter>
-          </defs>
-          <g class="ink-cloud__wash" filter="url(#ink-cloud-wash)">
-            <path d="M55 226C65 177 132 138 203 137C256 93 344 83 404 126C474 111 554 153 574 210C591 260 542 310 470 311C416 347 342 340 286 310C225 335 151 318 116 281C77 282 45 255 55 226Z" />
-          </g>
-          <g class="ink-cloud__body" filter="url(#ink-cloud-edge)">
-            <path d="M72 223C84 173 145 132 216 137C267 99 342 99 395 133C458 116 532 151 556 205C576 252 530 294 460 300C414 329 345 322 296 296C236 321 171 309 135 276C96 280 62 253 72 223Z" />
-          </g>
-          <g class="ink-cloud__bleed" filter="url(#ink-cloud-wash)">
-            <path d="M106 232C127 196 175 177 226 179C271 146 334 146 380 168C431 153 493 177 519 217C532 251 492 276 440 280C391 303 338 291 302 275C252 296 192 289 160 265C132 267 99 253 106 232Z" />
-          </g>
-        </svg>
+        <div class="ink-cloud" aria-hidden="true">
+          <span class="ink-cloud__bloom"></span>
+          <span class="ink-cloud__pigment"></span>
+          <span class="ink-cloud__grain"></span>
+        </div>
         <p class="day-number" id="day-number">2</p>
         <p class="hero-caption"><span>日</span> THE DAY, PRESENT AND UNREPEATED</p>
       </section>

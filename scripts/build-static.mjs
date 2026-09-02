@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const output = resolve(root, "dist");
 const files = ["index.html", "styles.css", "manifest.webmanifest", "service-worker.js"];
-const directories = ["icons", "js"];
+const directories = ["assets", "icons", "js"];
 const fontFiles = ["calendar-fonts.css", "NemriTechno-Regular.ttf", "NemriJPN-Brush.ttf"];
 
 await rm(output, { recursive: true, force: true });

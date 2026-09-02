@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Nemri Techno";
-  src: url("./NemriTechno-Regular.ttf?v=7") format("truetype");
+  src: url("./NemriTechno-Regular.ttf?v=8") format("truetype");
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -8,7 +8,7 @@
 
 @font-face {
   font-family: "Nemri JPN Brush";
-  src: url("./NemriJPN-Brush.ttf?v=7") format("truetype");
+  src: url("./NemriJPN-Brush.ttf?v=8") format("truetype");
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -26,8 +26,102 @@ body {
   font-family: var(--latin-font);
 }
 
+/* Keep the day/night symbols on a system symbol face. Nemri Techno is
+   intentionally narrow and does not contain these two UI glyphs. */
+.theme-toggle,
+.theme-toggle span {
+  font-family: system-ui, -apple-system, "Segoe UI Symbol", "Apple Symbols", sans-serif !important;
+}
+
+.theme-toggle {
+  min-width: 48px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* The month number and the Japanese 月 are deliberately equal in scale. */
+.month-ja > span,
+.month-ja small {
+  font-size: clamp(72px, 10vw, 116px);
+  line-height: 0.8;
+}
+
+.month-ja small {
+  margin-left: 4px;
+}
+
+/* Match the Japanese weekday and its translated label visually. */
+.weekday-panel {
+  grid-template-columns: 1fr 56px;
+}
+
+.weekday-ja,
+.weekday-en {
+  font-size: clamp(42px, 5.8vw, 70px);
+  line-height: 0.94;
+}
+
+/* Center the red disc on the numeral itself and keep the numeral dominant.
+   The single-digit face gets a small horizontal expansion so even a narrow
+   "1" visibly extends beyond the disc on both sides. */
+.hero-date {
+  --hero-number-size: clamp(390px, 70vmin, 560px);
+  --hero-sun-size: clamp(130px, 21vmin, 185px);
+}
+
+.hero-date:has(.day-number[data-digits="2"]) {
+  --hero-number-size: clamp(300px, 50vmin, 430px);
+  --hero-sun-size: clamp(145px, 23vmin, 205px);
+}
+
+.sun-disc {
+  top: 50%;
+  left: 50%;
+  width: var(--hero-sun-size);
+  transform: translate(-50%, -50%);
+}
+
+.day-number,
+.day-number[data-digits="2"] {
+  top: 50%;
+  left: 50%;
+  font-size: var(--hero-number-size);
+  line-height: 0.78;
+  transform: translate(-50%, -50%);
+}
+
+.day-number[data-digits="1"] {
+  letter-spacing: -0.04em;
+  transform: translate(-50%, -50%) scaleX(1.2);
+}
+
+.day-number[data-digits="2"] {
+  letter-spacing: -0.08em;
+}
+
 /* The base stylesheet forces this separator to generic sans-serif. Keep every
    visible Latin glyph on the custom calendar face instead. */
 .mini-grid .weekday em {
   font-family: var(--latin-font);
+}
+
+@media (max-width: 820px), (orientation: portrait) {
+  .weekday-panel {
+    grid-template-columns: 1fr 46px;
+  }
+
+  .weekday-ja,
+  .weekday-en {
+    font-size: clamp(34px, 8vw, 52px);
+  }
+
+  .hero-date {
+    --hero-number-size: clamp(300px, 76vw, 460px);
+    --hero-sun-size: clamp(115px, 28vw, 165px);
+  }
+
+  .hero-date:has(.day-number[data-digits="2"]) {
+    --hero-number-size: clamp(240px, 62vw, 380px);
+    --hero-sun-size: clamp(125px, 30vw, 175px);
+  }
 }

@@ -131,16 +131,16 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   z-index: 2;
 }
 
-.prayer-panel { position: absolute; top: clamp(90px, 14vh, 108px); left: 4px; width: 70px; color: var(--muted); font-family: var(--latin-font); font-variant-numeric: tabular-nums; }
+.prayer-panel { position: absolute; top: clamp(90px, 14vh, 108px); left: 0; width: 80px; color: var(--muted); font-family: var(--latin-font); font-variant-numeric: tabular-nums; }
 .prayer-panel[hidden] { display: none; }
 .prayer-panel p { display: flex; align-items: baseline; justify-content: center; gap: 3px; margin: 0 0 6px; padding-bottom: 3px; border-bottom: 1px solid var(--red); font-size: 8px; letter-spacing: 0.08em; }
 .prayer-panel p span { color: var(--red); font-family: var(--japanese-font); font-size: 10px; }
 .prayer-list { display: grid; justify-content: center; gap: 4px; }
-.prayer-list div { display: grid; grid-template-columns: 7px 32px 19px; column-gap: 2px; align-items: baseline; font-size: clamp(9px, 0.78vw, 11px); line-height: 1.05; white-space: nowrap; }
+.prayer-list div { display: grid; grid-template-columns: 8px 38px 26px; column-gap: 4px; align-items: baseline; font-size: clamp(11px, 0.94vw, 13px); line-height: 1.05; white-space: nowrap; }
 .prayer-list div span:first-child { color: var(--red); }
 .prayer-list div span:nth-child(2) { color: var(--ink); }
 .prayer-list div span:last-child { color: var(--red); text-align: right; }
-.weekday-ja { justify-self: end; transform: translateX(8px); }
+.weekday-ja { justify-self: end; transform: translateX(12px); }
 
 .weekday-ja {
   grid-row: 1;
@@ -322,8 +322,8 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   }
   .hero-date { grid-column: 2; grid-row: 2; }
   .weekday-panel { grid-column: 1; grid-row: 2; }
-  .prayer-panel { left: 2px; width: 70px; }
-  .prayer-list div { grid-template-columns: 7px 31px 18px; font-size: 8px; }
+  .prayer-panel { left: 0; width: 72px; }
+  .prayer-list div { grid-template-columns: 8px 35px 21px; column-gap: 3px; font-size: 9px; }
   .weekday-ja { transform: translateX(4px); }
   .month-panel { grid-column: 1 / -1; grid-row: 3; display: grid; grid-template-columns: 0.7fr 1.3fr; gap: 24px; border-top: 1px solid var(--ink); }
   .month-heading { align-self: start; }

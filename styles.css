@@ -200,15 +200,28 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   z-index: 1;
 }
 
-.sun-disc {
+.ink-cloud {
   position: absolute;
-  width: min(48vw, 50vh, 420px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: var(--red);
+  width: min(58vw, 68vh, 580px);
+  aspect-ratio: 640 / 430;
+  overflow: visible;
+  color: var(--red);
+  pointer-events: none;
   transform: translateY(2%);
+  transform-origin: center;
   z-index: -1;
 }
+
+.ink-cloud path { fill: currentColor; }
+.ink-cloud__body,
+.ink-cloud__wash,
+.ink-cloud__bleed {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.ink-cloud__body { opacity: 0.94; }
+.ink-cloud__wash { opacity: 0.24; }
+.ink-cloud__bleed { opacity: 0.16; }
 
 .day-number {
   position: absolute;
@@ -343,13 +356,33 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   .light-presets button { width: 40px; height: 40px; }
   .day-number { font-size: clamp(250px, 66vw, 410px); }
   .day-number[data-digits="2"] { font-size: clamp(205px, 55vw, 350px); }
-  .sun-disc { width: min(72vw, 390px); }
+  .ink-cloud { width: min(86vw, 68vh, 540px); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  .ink-cloud { animation: ink-cloud-drift 52s ease-in-out infinite alternate; }
+  .ink-cloud__body { animation: ink-cloud-breathe 46s ease-in-out infinite alternate; }
+  .ink-cloud__wash { animation: ink-cloud-spread 64s ease-in-out infinite alternate; }
+  .ink-cloud__bleed { animation: ink-cloud-bleed 58s ease-in-out infinite alternate-reverse; }
   .day-number.date-changed { animation: day-change 380ms ease-out; }
   .weather-main.updated { animation: weather-update 280ms ease-out; }
 }
 
+@keyframes ink-cloud-drift {
+  from { transform: translate3d(-0.5%, 1.7%, 0) rotate(-0.18deg); }
+  to { transform: translate3d(0.65%, 2.35%, 0) rotate(0.22deg); }
+}
+@keyframes ink-cloud-breathe {
+  from { opacity: 0.92; transform: scale(0.992, 0.996); }
+  to { opacity: 0.96; transform: scale(1.008, 1.012); }
+}
+@keyframes ink-cloud-spread {
+  from { opacity: 0.19; transform: scale(0.97, 0.975) translate(-0.5%, 0.3%); }
+  to { opacity: 0.27; transform: scale(1.035, 1.025) translate(0.45%, -0.25%); }
+}
+@keyframes ink-cloud-bleed {
+  from { opacity: 0.11; transform: scale(0.96, 0.97) translate(0.5%, -0.4%); }
+  to { opacity: 0.19; transform: scale(1.04, 1.025) translate(-0.4%, 0.45%); }
+}
 @keyframes day-change { from { opacity: 0.3; transform: translate(-50%, calc(-54% + 8px)); } }
 @keyframes weather-update { from { opacity: 0.45; } }

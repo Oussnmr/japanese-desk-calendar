@@ -200,7 +200,7 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   z-index: 1;
 }
 
-.ink-stain {
+.enso-ring {
   position: absolute;
   width: min(72vw, 70vh, 620px);
   height: auto;
@@ -212,7 +212,7 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   z-index: -1;
 }
 
-.hero-date[data-digits="2"] .ink-stain { width: min(72vw, 69vh, 600px); }
+.hero-date[data-digits="2"] .enso-ring { width: min(72vw, 69vh, 600px); }
 
 .day-number {
   position: absolute;
@@ -347,8 +347,8 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   .light-presets button { width: 40px; height: 40px; }
   .day-number { font-size: clamp(250px, 66vw, 410px); }
   .day-number[data-digits="2"] { font-size: clamp(205px, 55vw, 350px); }
-  .ink-stain { width: min(90vw, 68vh, 590px); }
-  .hero-date[data-digits="2"] .ink-stain { width: min(92vw, 68vh, 580px); }
+  .enso-ring { width: min(90vw, 68vh, 590px); }
+  .hero-date[data-digits="2"] .enso-ring { width: min(92vw, 68vh, 580px); }
 }
 
 @media (prefers-reduced-motion: no-preference) {

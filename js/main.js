@@ -31,12 +31,15 @@ const elements = Object.fromEntries(
     "year", "weekday-ja", "weekday-en", "date-small", "day-number", "month-number",
     "month-en", "mini-calendar", "clock", "weather-temp", "weather-condition",
     "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
-    "light-on", "light-off", "light-status",
+    "light-on", "light-off", "light-status", "stopwatch", "stopwatch-toggle", "stopwatch-clear",
   ].map((id) => [id, document.getElementById(id)]),
 );
 
 let currentDateKey = "";
 let wakeLock = null;
+let stopwatchElapsed = 0;
+let stopwatchStartedAt = null;
+let stopwatchTimer = null;
 
 function showLightState(on, available = true) {
   elements["light-on"].disabled = !available;
@@ -126,6 +129,54 @@ function tick() {
   }
 }
 
+function formatStopwatch(milliseconds) {
+  const tenths = Math.floor(milliseconds / 100) % 10;
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const seconds = totalSeconds % 60;
+  const minutes = Math.floor(totalSeconds / 60) % 60;
+  const hours = Math.floor(totalSeconds / 3600);
+  const prefix = hours > 0 ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}` : String(minutes).padStart(2, "0");
+  return `${prefix}:${String(seconds).padStart(2, "0")}.${tenths}`;
+}
+
+function stopwatchValue() {
+  return stopwatchElapsed + (stopwatchStartedAt === null ? 0 : performance.now() - stopwatchStartedAt);
+}
+
+function renderStopwatch() {
+  const value = stopwatchValue();
+  elements.stopwatch.textContent = formatStopwatch(value);
+  elements.stopwatch.dateTime = `PT${Math.floor(value / 1000)}S`;
+  elements.stopwatch.hidden = value === 0;
+  elements["stopwatch-clear"].disabled = value === 0;
+}
+
+function setStopwatchRunning(running) {
+  if (running) {
+    stopwatchStartedAt = performance.now();
+    stopwatchTimer = window.setInterval(renderStopwatch, 100);
+  } else {
+    stopwatchElapsed = stopwatchValue();
+    stopwatchStartedAt = null;
+    window.clearInterval(stopwatchTimer);
+    stopwatchTimer = null;
+  }
+  elements["stopwatch-toggle"].textContent = running ? "PAUSE" : "START";
+  elements["stopwatch-toggle"].setAttribute("aria-pressed", String(running));
+  elements["stopwatch-toggle"].setAttribute("aria-label", running ? "Pause stopwatch" : "Start stopwatch");
+  renderStopwatch();
+}
+
+function toggleStopwatch() {
+  setStopwatchRunning(stopwatchStartedAt === null);
+}
+
+function clearStopwatch() {
+  if (stopwatchStartedAt !== null) setStopwatchRunning(false);
+  stopwatchElapsed = 0;
+  renderStopwatch();
+}
+
 function showWeather({ weather, cached }) {
   const rounded = (value) => `${Math.round(value)}°`;
   elements["weather-temp"].textContent = rounded(weather.temperature);
@@ -167,6 +218,8 @@ elements["theme-toggle"].addEventListener("click", () => {
 });
 elements["light-on"].addEventListener("click", () => setLight(true));
 elements["light-off"].addEventListener("click", () => setLight(false));
+elements["stopwatch-toggle"].addEventListener("click", toggleStopwatch);
+elements["stopwatch-clear"].addEventListener("click", clearStopwatch);
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(() => {}));

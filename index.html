@@ -79,8 +79,17 @@
       </aside>
 
       <footer class="time-band">
-        <div class="location"><b>ブリュッセル</b><span>BRUSSELS · BELGIUM</span></div>
-        <time class="clock" id="clock" datetime="00:00:00">00:00:00</time>
+        <div class="footer-left">
+          <div class="stopwatch-controls" aria-label="Stopwatch controls">
+            <button id="stopwatch-toggle" type="button" aria-pressed="false">START</button>
+            <button id="stopwatch-clear" type="button" disabled>CLEAR</button>
+          </div>
+          <div class="location"><b>ブリュッセル</b><span>BRUSSELS · BELGIUM</span></div>
+        </div>
+        <div class="clock-wrap">
+          <time class="clock" id="clock" datetime="00:00:00">00:00:00</time>
+          <time class="stopwatch" id="stopwatch" datetime="PT0S" hidden aria-live="off">00:00.0</time>
+        </div>
         <p class="clock-label">現在時刻<br><span>CURRENT TIME</span></p>
       </footer>
     </main>

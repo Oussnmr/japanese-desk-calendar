@@ -38,7 +38,7 @@
       </header>
 
       <section class="weekday-panel" data-editor-target="weekday" aria-label="Day of the week">
-        <section class="prayer-panel" id="prayer-panel" aria-label="Prayer times at Masjid AL-ABIDIN" hidden>
+        <section class="prayer-panel" id="prayer-panel" data-editor-target="prayers" aria-label="Prayer times at Masjid AL-ABIDIN" hidden>
           <p><span>礼拝</span> SALAH</p>
           <div class="prayer-list" id="prayer-list"></div>
         </section>
@@ -47,7 +47,7 @@
         <div class="rule" aria-hidden="true"></div>
         <p class="today-mark"><b>今日</b><span>TODAY</span></p>
         <p class="date-small" id="date-small">2 · SEPTEMBER</p>
-        <section class="light-presets" id="light-controls" aria-label="Light controls" aria-busy="false">
+        <section class="light-presets" id="light-controls" data-editor-target="lights" aria-label="Light controls" aria-busy="false">
           <button id="light-power" type="button" aria-label="Turn light on" aria-pressed="false" disabled>ON</button>
           <button id="light-chill" type="button" aria-pressed="false" disabled>CHILL</button>
           <button id="light-color" type="button" aria-label="Open RGB light controls" aria-pressed="false" aria-expanded="false" aria-controls="light-color-panel" disabled>COLOR</button>
@@ -70,7 +70,7 @@
       </section>
 
       <section class="hero-date" id="hero-date" data-editor-target="hero" data-digits="1" aria-label="Current day">
-        <img class="enso-ring" src="./assets/enso-brush.png" alt="" width="1254" height="1254" decoding="async" draggable="false">
+        <img class="enso-ring" id="enso-ring" src="./assets/enso-brush.png" alt="" width="1254" height="1254" decoding="async" draggable="false">
         <p class="day-number" id="day-number">2</p>
         <p class="hero-caption" id="hero-caption" data-editor-target="caption"><span>日</span> <span id="hero-caption-text">THE DAY, PRESENT AND UNREPEATED</span></p>
       </section>
@@ -81,7 +81,7 @@
           <p id="month-en">SEPTEMBER</p>
         </div>
         <div class="month-rule" aria-hidden="true"></div>
-        <div class="mini-calendar" id="mini-calendar"></div>
+        <div class="mini-calendar" id="mini-calendar" data-editor-target="calendar"></div>
         <section class="weather" data-editor-target="weather" aria-label="Weather in Brussels">
           <div class="weather-title"><span>天気</span> WEATHER</div>
           <div class="weather-main">
@@ -99,13 +99,13 @@
 
       <footer class="time-band" data-editor-target="footer">
         <div class="footer-left">
-          <div class="stopwatch-controls" aria-label="Stopwatch controls">
+          <div class="stopwatch-controls" data-editor-target="stopwatch" aria-label="Stopwatch controls">
             <button id="stopwatch-toggle" type="button" aria-pressed="false">START</button>
             <button id="stopwatch-clear" type="button" disabled>CLEAR</button>
           </div>
           <div class="location"><b>ブリュッセル</b><span id="location-detail">BRUSSELS · BELGIUM</span></div>
         </div>
-        <div class="clock-wrap">
+        <div class="clock-wrap" data-editor-target="clock">
           <time class="clock" id="clock" datetime="00:00:00">00:00:00</time>
           <time class="stopwatch" id="stopwatch" datetime="PT0S" hidden aria-live="off">00:00.0</time>
         </div>
@@ -116,17 +116,23 @@
     <aside class="calendar-editor" id="calendar-editor" aria-label="Calendar editor" hidden>
       <header class="editor-heading">
         <div><span>編</span><b>EDIT CALENDAR</b></div>
+        <span class="editor-drag-cue" aria-hidden="true">•••</span>
         <button id="calendar-editor-close" type="button" aria-label="Close editor">×</button>
       </header>
-      <p class="editor-note">Changes stay on this device until you save or reset them.</p>
+      <p class="editor-note" id="editor-note">Tap an element to select its whole section. Drag this heading to move the editor.</p>
       <label class="editor-field">ELEMENT
         <select id="editor-target">
           <option value="masthead">Header</option>
           <option value="weekday">Weekday</option>
+          <option value="prayers">Prayer calendar</option>
+          <option value="lights">Light controls</option>
           <option value="hero">Day / ensō</option>
           <option value="caption">Day caption</option>
           <option value="month">Month</option>
+          <option value="calendar">Month calendar</option>
           <option value="weather">Weather</option>
+          <option value="stopwatch">Stopwatch</option>
+          <option value="clock">Clock</option>
           <option value="footer">Clock band</option>
         </select>
       </label>
@@ -136,6 +142,27 @@
         <label>VERTICAL <output id="editor-y-value">0</output><input id="editor-y" type="range" min="-160" max="160" value="0"></label>
         <label>SCALE <output id="editor-scale-value">100%</output><input id="editor-scale" type="range" min="70" max="140" value="100"></label>
         <label>WIDTH <output id="editor-width-value">100%</output><input id="editor-width" type="range" min="60" max="140" value="100"></label>
+        <label>OPACITY <output id="editor-opacity-value">100%</output><input id="editor-opacity" type="range" min="10" max="100" value="100"></label>
+        <label>ROTATION <output id="editor-rotation-value">0°</output><input id="editor-rotation" type="range" min="-30" max="30" value="0"></label>
+      </div>
+      <div class="editor-colors">
+        <label>SELECTED TEXT <input id="editor-color" type="color" value="#11100e"></label>
+        <label>ALL TEXT <input id="editor-ink-color" type="color" value="#11100e"></label>
+        <label>BACKGROUND <input id="editor-paper-color" type="color" value="#f5f2ea"></label>
+      </div>
+      <div class="editor-images">
+        <label class="editor-field">IMAGE DESTINATION
+          <select id="editor-image-kind"><option value="enso">ENSŌ / MAIN SHAPE</option><option value="background">FULL BACKGROUND</option></select>
+        </label>
+        <label class="editor-upload">IMPORT IMAGE <input id="editor-image-file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></label>
+        <label class="editor-field">SAVED IMAGES
+          <select id="editor-image-list"><option value="">CHOOSE AN IMAGE</option></select>
+        </label>
+        <div class="editor-actions">
+          <button id="editor-apply-image" type="button">APPLY IMAGE</button>
+          <button id="editor-original-image" type="button">USE ORIGINAL</button>
+        </div>
+        <p class="editor-image-help">ENSŌ: transparent PNG/WebP/SVG, square 1254×1254 recommended. Background: JPG/WebP, iPad 4:3. Maximum 1.5 MB.</p>
       </div>
       <div class="editor-profile">
         <label class="editor-field">PROFILE <input id="editor-profile-name" type="text" maxlength="28" placeholder="NEW PROFILE" autocomplete="off"></label>

@@ -8,6 +8,8 @@ const PRAYER_REFRESH_MS = 30 * 60 * 1000;
 const THEME_KEY = "jdc-theme";
 const EDITOR_DRAFT_KEY = "jdc-calendar-editor-draft";
 const EDITOR_PROFILES_KEY = "jdc-calendar-editor-profiles";
+const EDITOR_IMAGES_KEY = "jdc-calendar-editor-images";
+const MAX_EDITOR_IMAGE_BYTES = 1.5 * 1024 * 1024;
 const WEEKDAYS_JA = ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"];
 const WEEKDAYS_EN = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const MONTHS_EN = [
@@ -37,7 +39,7 @@ const elements = Object.fromEntries(
     "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
     "light-controls", "light-power", "light-chill", "light-color", "light-color-panel", "light-color-wheel", "light-color-handle", "light-color-hex", "light-saturation", "light-saturation-value", "light-intensity", "light-intensity-value", "light-warmth", "light-warmth-value", "light-status",
     "stopwatch", "stopwatch-toggle", "stopwatch-clear",
-    "calendar-editor-toggle", "calendar-editor", "calendar-editor-close", "editor-target", "editor-text", "editor-x", "editor-x-value", "editor-y", "editor-y-value", "editor-scale", "editor-scale-value", "editor-width", "editor-width-value", "editor-profile-name", "editor-save-profile", "editor-reset", "editor-profile-list",
+    "calendar-editor-toggle", "calendar-editor", "calendar-editor-close", "editor-note", "editor-target", "editor-text", "editor-x", "editor-x-value", "editor-y", "editor-y-value", "editor-scale", "editor-scale-value", "editor-width", "editor-width-value", "editor-opacity", "editor-opacity-value", "editor-rotation", "editor-rotation-value", "editor-color", "editor-ink-color", "editor-paper-color", "editor-image-kind", "editor-image-file", "editor-image-list", "editor-apply-image", "editor-original-image", "editor-profile-name", "editor-save-profile", "editor-reset", "editor-profile-list", "enso-ring",
   ].map((id) => [id, document.getElementById(id)]),
 );
 
@@ -55,18 +57,24 @@ let colorRequestInFlight = false;
 let colorRequestQueued = null;
 let colorControls = { hue: 0, saturation: 100, intensity: 100 };
 let editorOpen = false;
-let editorState = { overrides: {}, text: {} };
+let editorState = { overrides: {}, text: {}, colors: {}, assets: {} };
+let editorDrag = null;
 
 const EDITOR_TARGETS = {
   masthead: { selector: '[data-editor-target="masthead"]', textId: "edition-title" },
   weekday: { selector: '[data-editor-target="weekday"]' },
+  prayers: { selector: '[data-editor-target="prayers"]' },
+  lights: { selector: '[data-editor-target="lights"]' },
   hero: { selector: '[data-editor-target="hero"]' },
   caption: { selector: '[data-editor-target="caption"]', textId: "hero-caption-text" },
   month: { selector: '[data-editor-target="month"]' },
+  calendar: { selector: '[data-editor-target="calendar"]' },
   weather: { selector: '[data-editor-target="weather"]' },
+  stopwatch: { selector: '[data-editor-target="stopwatch"]' },
+  clock: { selector: '[data-editor-target="clock"]' },
   footer: { selector: '[data-editor-target="footer"]', textId: "location-detail" },
 };
-const editorDefaults = { x: 0, y: 0, scale: 100, width: 100 };
+const editorDefaults = { x: 0, y: 0, scale: 100, width: 100, opacity: 100, rotation: 0, color: "" };
 
 function storedJson(key, fallback) {
   try {
@@ -92,6 +100,16 @@ function updateEditorProfileList() {
   elements["editor-profile-list"].value = profiles[current] ? current : "";
 }
 
+function updateEditorImageList() {
+  const images = storedJson(EDITOR_IMAGES_KEY, {});
+  const current = elements["editor-image-list"].value;
+  elements["editor-image-list"].replaceChildren(new Option("CHOOSE AN IMAGE", ""));
+  for (const name of Object.keys(images).sort((left, right) => left.localeCompare(right))) {
+    elements["editor-image-list"].add(new Option(name, name));
+  }
+  elements["editor-image-list"].value = images[current] ? current : "";
+}
+
 function applyEditorState() {
   const sheet = document.querySelector(".calendar-sheet");
   for (const [name, target] of Object.entries(EDITOR_TARGETS)) {
@@ -102,6 +120,18 @@ function applyEditorState() {
     node.style.setProperty("--editor-y", `${values.y}px`);
     node.style.setProperty("--editor-scale", String(values.scale / 100));
     node.style.setProperty("--editor-width", `${values.width}%`);
+    node.style.setProperty("--editor-opacity", String(values.opacity / 100));
+    node.style.setProperty("--editor-rotation", `${values.rotation}deg`);
+    const customLayout = ["x", "y", "scale", "width", "opacity", "rotation"].some((key) => values[key] !== editorDefaults[key]);
+    if (customLayout) node.dataset.editorCustom = "true";
+    else delete node.dataset.editorCustom;
+    if (values.color) {
+      node.style.setProperty("--editor-color", values.color);
+      node.dataset.editorColor = "true";
+    } else {
+      node.style.removeProperty("--editor-color");
+      delete node.dataset.editorColor;
+    }
     if (target.textId) {
       const textNode = document.getElementById(target.textId);
       if (textNode) {
@@ -110,7 +140,16 @@ function applyEditorState() {
       }
     }
   }
-  sheet.classList.toggle("editor-active", Object.keys(editorState.overrides).length > 0);
+  for (const [variable, value] of [["--ink", editorState.colors.ink], ["--red", editorState.colors.ink], ["--paper", editorState.colors.paper]]) {
+    if (value) document.documentElement.style.setProperty(variable, value);
+    else document.documentElement.style.removeProperty(variable);
+  }
+  const images = storedJson(EDITOR_IMAGES_KEY, {});
+  const background = images[editorState.assets.background];
+  if (background) sheet.style.setProperty("--editor-background-image", `url("${background}")`);
+  else sheet.style.removeProperty("--editor-background-image");
+  elements["enso-ring"].src = images[editorState.assets.enso] || "./assets/enso-brush.png";
+  sheet.classList.toggle("editor-active", Object.keys(editorState.overrides).length > 0 || Object.keys(editorState.text).length > 0 || Object.keys(editorState.colors).length > 0 || Object.keys(editorState.assets).length > 0);
 }
 
 function saveEditorDraft() {
@@ -124,24 +163,44 @@ function updateEditorFields() {
   elements["editor-y"].value = values.y;
   elements["editor-scale"].value = values.scale;
   elements["editor-width"].value = values.width;
+  elements["editor-opacity"].value = values.opacity;
+  elements["editor-rotation"].value = values.rotation;
   elements["editor-x-value"].textContent = values.x;
   elements["editor-y-value"].textContent = values.y;
   elements["editor-scale-value"].textContent = `${values.scale}%`;
   elements["editor-width-value"].textContent = `${values.width}%`;
+  elements["editor-opacity-value"].textContent = `${values.opacity}%`;
+  elements["editor-rotation-value"].textContent = `${values.rotation}°`;
+  elements["editor-color"].value = values.color || editorState.colors.ink || (document.documentElement.dataset.theme === "dark" ? "#f5f2ea" : "#11100e");
+  elements["editor-ink-color"].value = editorState.colors.ink || (document.documentElement.dataset.theme === "dark" ? "#f5f2ea" : "#11100e");
+  elements["editor-paper-color"].value = editorState.colors.paper || (document.documentElement.dataset.theme === "dark" ? "#080807" : "#f5f2ea");
   const textId = EDITOR_TARGETS[target].textId;
   const textNode = textId ? document.getElementById(textId) : null;
   elements["editor-text"].disabled = !textNode;
   elements["editor-text"].value = textNode ? (editorState.text[target] ?? textNode.dataset.originalText ?? textNode.textContent) : "";
 }
 
+function selectEditorTarget(target) {
+  if (!EDITOR_TARGETS[target]) return;
+  elements["editor-target"].value = target;
+  for (const node of document.querySelectorAll("[data-editor-selected]")) delete node.dataset.editorSelected;
+  const node = document.querySelector(EDITOR_TARGETS[target].selector);
+  if (node) node.dataset.editorSelected = "true";
+  updateEditorFields();
+}
+
 function setEditorOpen(open) {
   editorOpen = open;
   elements["calendar-editor"].hidden = !open;
   elements["calendar-editor-toggle"].setAttribute("aria-expanded", String(open));
+  document.body.classList.toggle("editor-is-open", open);
   if (open) {
     updateEditorProfileList();
-    updateEditorFields();
+    updateEditorImageList();
+    selectEditorTarget(elements["editor-target"].value);
     elements["editor-target"].focus({ preventScroll: true });
+  } else {
+    for (const node of document.querySelectorAll("[data-editor-selected]")) delete node.dataset.editorSelected;
   }
 }
 
@@ -154,7 +213,7 @@ function updateEditorValue(key, value) {
 }
 
 function resetEditor() {
-  editorState = { overrides: {}, text: {} };
+  editorState = { overrides: {}, text: {}, colors: {}, assets: {} };
   try { localStorage.removeItem(EDITOR_DRAFT_KEY); } catch {}
   applyEditorState();
   updateEditorFields();
@@ -180,10 +239,74 @@ function loadEditorProfile(name) {
   editorState = {
     overrides: profile.overrides && typeof profile.overrides === "object" ? profile.overrides : {},
     text: profile.text && typeof profile.text === "object" ? profile.text : {},
+    colors: profile.colors && typeof profile.colors === "object" ? profile.colors : {},
+    assets: profile.assets && typeof profile.assets === "object" ? profile.assets : {},
   };
   applyEditorState();
   saveEditorDraft();
   updateEditorFields();
+}
+
+function setEditorMessage(message) {
+  elements["editor-note"].textContent = message;
+}
+
+function importEditorImage(file) {
+  if (!file || !/^image\/(png|jpeg|webp|svg\+xml)$/.test(file.type)) {
+    setEditorMessage("Use a PNG, WebP, JPG or SVG image.");
+    return;
+  }
+  if (file.size > MAX_EDITOR_IMAGE_BYTES) {
+    setEditorMessage("Image too large. Compress it below 1.5 MB and try again.");
+    return;
+  }
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    const images = storedJson(EDITOR_IMAGES_KEY, {});
+    images[file.name] = reader.result;
+    try {
+      localStorage.setItem(EDITOR_IMAGES_KEY, JSON.stringify(images));
+      updateEditorImageList();
+      elements["editor-image-list"].value = file.name;
+      setEditorMessage(`${file.name} saved on this device.`);
+    } catch {
+      setEditorMessage("Storage is full. Use a smaller image or remove browser data.");
+    }
+  });
+  reader.readAsDataURL(file);
+}
+
+function applyEditorImage(original = false) {
+  const kind = elements["editor-image-kind"].value;
+  const name = elements["editor-image-list"].value;
+  if (original) delete editorState.assets[kind];
+  else if (name) editorState.assets[kind] = name;
+  else return;
+  applyEditorState();
+  saveEditorDraft();
+}
+
+function beginEditorDrag(event) {
+  if (event.target.closest("button")) return;
+  const panel = elements["calendar-editor"];
+  const bounds = panel.getBoundingClientRect();
+  editorDrag = { pointerId: event.pointerId, dx: event.clientX - bounds.left, dy: event.clientY - bounds.top };
+  event.currentTarget.setPointerCapture(event.pointerId);
+}
+
+function moveEditor(event) {
+  if (!editorDrag || editorDrag.pointerId !== event.pointerId) return;
+  const panel = elements["calendar-editor"];
+  const left = Math.min(Math.max(8, event.clientX - editorDrag.dx), window.innerWidth - panel.offsetWidth - 8);
+  const top = Math.min(Math.max(8, event.clientY - editorDrag.dy), window.innerHeight - Math.min(panel.offsetHeight, window.innerHeight - 16) - 8);
+  panel.style.left = `${left}px`;
+  panel.style.top = `${top}px`;
+}
+
+function endEditorDrag(event) {
+  if (!editorDrag || editorDrag.pointerId !== event.pointerId) return;
+  if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  editorDrag = null;
 }
 
 function showLightState(state, available = true) {
@@ -516,20 +639,39 @@ const savedEditorDraft = storedJson(EDITOR_DRAFT_KEY, {});
 editorState = {
   overrides: savedEditorDraft.overrides && typeof savedEditorDraft.overrides === "object" ? savedEditorDraft.overrides : {},
   text: savedEditorDraft.text && typeof savedEditorDraft.text === "object" ? savedEditorDraft.text : {},
+  colors: savedEditorDraft.colors && typeof savedEditorDraft.colors === "object" ? savedEditorDraft.colors : {},
+  assets: savedEditorDraft.assets && typeof savedEditorDraft.assets === "object" ? savedEditorDraft.assets : {},
 };
 applyEditorState();
 elements["theme-toggle"].addEventListener("click", () => {
   applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
+  if (editorOpen) updateEditorFields();
 });
 elements["calendar-editor-toggle"].addEventListener("click", () => setEditorOpen(!editorOpen));
 elements["calendar-editor-close"].addEventListener("click", () => {
   setEditorOpen(false);
   elements["calendar-editor-toggle"].focus({ preventScroll: true });
 });
-elements["editor-target"].addEventListener("change", updateEditorFields);
-for (const [id, key] of [["editor-x", "x"], ["editor-y", "y"], ["editor-scale", "scale"], ["editor-width", "width"]]) {
+elements["editor-target"].addEventListener("change", () => selectEditorTarget(elements["editor-target"].value));
+for (const [id, key] of [["editor-x", "x"], ["editor-y", "y"], ["editor-scale", "scale"], ["editor-width", "width"], ["editor-opacity", "opacity"], ["editor-rotation", "rotation"]]) {
   elements[id].addEventListener("input", () => updateEditorValue(key, elements[id].value));
 }
+elements["editor-color"].addEventListener("input", () => {
+  const target = elements["editor-target"].value;
+  editorState.overrides[target] = { ...editorValues(target), color: elements["editor-color"].value };
+  applyEditorState();
+  saveEditorDraft();
+});
+elements["editor-ink-color"].addEventListener("input", () => {
+  editorState.colors.ink = elements["editor-ink-color"].value;
+  applyEditorState();
+  saveEditorDraft();
+});
+elements["editor-paper-color"].addEventListener("input", () => {
+  editorState.colors.paper = elements["editor-paper-color"].value;
+  applyEditorState();
+  saveEditorDraft();
+});
 elements["editor-text"].addEventListener("input", () => {
   const target = elements["editor-target"].value;
   if (!EDITOR_TARGETS[target].textId) return;
@@ -540,6 +682,22 @@ elements["editor-text"].addEventListener("input", () => {
 elements["editor-save-profile"].addEventListener("click", saveEditorProfile);
 elements["editor-reset"].addEventListener("click", resetEditor);
 elements["editor-profile-list"].addEventListener("change", () => loadEditorProfile(elements["editor-profile-list"].value));
+elements["editor-image-file"].addEventListener("change", () => importEditorImage(elements["editor-image-file"].files[0]));
+elements["editor-apply-image"].addEventListener("click", () => applyEditorImage(false));
+elements["editor-original-image"].addEventListener("click", () => applyEditorImage(true));
+const editorHeading = document.querySelector(".editor-heading");
+editorHeading.addEventListener("pointerdown", beginEditorDrag);
+editorHeading.addEventListener("pointermove", moveEditor);
+editorHeading.addEventListener("pointerup", endEditorDrag);
+editorHeading.addEventListener("pointercancel", endEditorDrag);
+document.querySelector(".calendar-sheet").addEventListener("click", (event) => {
+  if (!editorOpen) return;
+  const target = event.target.closest("[data-editor-target]");
+  if (!target) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  selectEditorTarget(target.dataset.editorTarget);
+}, true);
 elements["light-power"].addEventListener("click", () => commandLight("/api/light/toggle"));
 elements["light-chill"].addEventListener("click", () => {
   const nextPreset = lightState?.preset === "chill" ? "bright" : "chill";

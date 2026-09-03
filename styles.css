@@ -59,6 +59,10 @@ body {
   height: 100dvh;
   padding: var(--pad-y) var(--pad-r) var(--pad-b) var(--pad-x);
   isolation: isolate;
+  background-image: var(--editor-background-image, none);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
 }
 
 .calendar-sheet::before {
@@ -254,9 +258,11 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
 }
 .calendar-editor[hidden] { display: none; }
 .editor-heading, .editor-heading > div, .editor-actions { display: flex; align-items: center; }
-.editor-heading { justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--hairline); }
+.editor-heading { justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--hairline); cursor: grab; touch-action: none; user-select: none; }
+.editor-heading:active { cursor: grabbing; }
 .editor-heading > div { gap: 5px; }
 .editor-heading span { color: var(--red); font-family: var(--japanese-font); font-size: 17px; }
+.editor-heading .editor-drag-cue { margin-left: auto; color: var(--muted); font-family: var(--latin-font); font-size: 10px; letter-spacing: 0.08em; }
 .editor-heading b { font-weight: 400; }
 .editor-heading button { width: 24px; height: 24px; margin: -5px -5px -5px 0; border: 0; color: var(--muted); background: transparent; font: 20px/1 var(--latin-font); cursor: pointer; }
 .editor-note { margin: 10px 0 13px; color: var(--muted); font-size: 9px; letter-spacing: 0.05em; line-height: 1.45; }
@@ -266,11 +272,24 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
 .editor-sliders label { grid-template-columns: 1fr auto; align-items: baseline; padding-top: 9px; margin-bottom: 1px; }
 .editor-sliders output { color: var(--red); font-size: 11px; }
 .editor-sliders input { grid-column: 1 / -1; width: 100%; margin: 0; accent-color: var(--red); }
+.editor-colors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--hairline); }
+.editor-colors label { display: grid; gap: 6px; color: var(--muted); font-size: 8px; text-align: center; }
+.editor-colors input { width: 100%; height: 28px; padding: 2px; border: 1px solid var(--hairline); border-radius: 7px; background: transparent; cursor: pointer; }
+.editor-images { margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--hairline); }
+.editor-upload { display: grid; gap: 6px; margin-bottom: 11px; color: var(--muted); }
+.editor-upload input { width: 100%; color: var(--muted); font: 9px var(--latin-font); }
+.editor-upload input::file-selector-button { min-height: 28px; margin-right: 8px; border: 1px solid var(--hairline); border-radius: 7px; color: var(--ink); background: transparent; font: 9px var(--latin-font); letter-spacing: 0.06em; cursor: pointer; }
+.editor-image-help { margin: -3px 0 0; color: var(--muted); font-size: 8px; line-height: 1.45; letter-spacing: 0.04em; }
 .editor-profile { margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--hairline); }
 .editor-actions { gap: 7px; margin: -2px 0 12px; }
 .editor-actions button { flex: 1; min-height: 29px; border: 1px solid var(--hairline); border-radius: 7px; color: var(--ink); background: transparent; font: 9px var(--latin-font); letter-spacing: 0.07em; cursor: pointer; }
 .editor-actions button:last-child { border-color: var(--red); color: var(--red); }
-.calendar-sheet.editor-active [data-editor-target] { transform: translate(var(--editor-x, 0px), var(--editor-y, 0px)) scale(var(--editor-scale, 1)); transform-origin: center; width: var(--editor-width, 100%); }
+.calendar-sheet.editor-active [data-editor-target][data-editor-custom="true"] { transform: translate(var(--editor-x, 0px), var(--editor-y, 0px)) rotate(var(--editor-rotation, 0deg)) scale(var(--editor-scale, 1)); transform-origin: center; width: var(--editor-width, 100%); opacity: var(--editor-opacity, 1); }
+.calendar-sheet.editor-active [data-editor-target][data-editor-color="true"] { color: var(--editor-color); }
+.calendar-sheet.editor-active [data-editor-target][data-editor-color="true"] * { color: inherit !important; }
+body.editor-is-open .calendar-sheet [data-editor-target] { cursor: pointer; }
+body.editor-is-open .calendar-sheet [data-editor-target]:hover { outline: 1px dashed var(--hairline); outline-offset: 4px; }
+body.editor-is-open .calendar-sheet [data-editor-selected="true"] { outline: 2px solid var(--red); outline-offset: 5px; }
 
 .hero-date {
   position: relative;

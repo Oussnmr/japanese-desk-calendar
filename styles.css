@@ -189,6 +189,26 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
 .light-presets.is-pending button { opacity: 0.45; }
 .light-presets.is-unavailable button { opacity: 0.28; }
 .light-status { position: absolute; top: 0; left: clamp(50px, 4.5vw, 57px); color: var(--red); font-family: var(--latin-font); font-size: 10px; }
+.light-color-panel { position: absolute; bottom: 0; left: clamp(54px, 5vw, 64px); z-index: 8; width: clamp(224px, 23vw, 258px); padding: 14px 16px 16px; border: 1px solid var(--ink); color: var(--ink); background: var(--paper); font-family: var(--latin-font); box-shadow: none; }
+.light-color-panel[hidden] { display: none; }
+.color-panel-heading { display: flex; align-items: baseline; gap: 5px; padding-bottom: 8px; border-bottom: 1px solid var(--hairline); font-size: 11px; letter-spacing: 0.1em; }
+.color-panel-heading span { color: var(--red); font-family: var(--japanese-font); font-size: 16px; }
+.color-panel-heading b { font-weight: 400; }
+.color-panel-heading output { margin-left: auto; color: var(--muted); font-size: 10px; }
+.color-wheel-wrap { position: relative; width: 126px; height: 126px; margin: 12px auto 14px; }
+.color-wheel { width: 100%; height: 100%; border: 0; border-radius: 50%; background: conic-gradient(#f22 0deg, #ffea00 55deg, #29d949 125deg, #00c6e8 190deg, #2858ff 248deg, #bb22d9 305deg, #f22 360deg); cursor: crosshair; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.color-wheel::after { content: ""; position: absolute; inset: 28px; border-radius: 50%; border: 1px solid var(--paper); background: var(--paper); pointer-events: none; }
+.color-wheel:focus-visible { outline: 1px solid var(--red); outline-offset: 4px; }
+.color-wheel-handle { position: absolute; top: 50%; left: 50%; width: 13px; height: 13px; border: 2px solid var(--paper); border-radius: 50%; background: var(--red); box-shadow: 0 0 0 1px var(--ink); pointer-events: none; transform: translate(-50%, -50%); }
+.light-range-label { display: flex; align-items: baseline; justify-content: space-between; margin: 10px 0 4px; font-size: 10px; letter-spacing: 0.1em; }
+.light-range-label output { color: var(--red); font-size: 12px; }
+.warmth-ends { display: flex; justify-content: space-between; margin: 0 0 3px; color: var(--muted); font-size: 8px; letter-spacing: 0.08em; }
+.light-range { width: 100%; height: 24px; margin: 0; padding: 0; accent-color: var(--red); cursor: pointer; touch-action: pan-y; }
+.light-range::-webkit-slider-runnable-track { height: 2px; background: var(--hairline); }
+.light-range::-webkit-slider-thumb { width: 16px; height: 16px; margin-top: -7px; border: 1px solid var(--ink); border-radius: 50%; background: var(--paper); -webkit-appearance: none; }
+.light-range::-moz-range-track { height: 2px; background: var(--hairline); }
+.light-range::-moz-range-thumb { width: 14px; height: 14px; border: 1px solid var(--ink); border-radius: 50%; background: var(--paper); }
+.light-range:focus-visible { outline: 1px solid var(--red); outline-offset: 3px; }
 
 .hero-date {
   position: relative;
@@ -345,6 +365,8 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   .stopwatch { left: calc(100% + 32px); font-size: clamp(20px, 3.55vw, 36px); }
   .clock-label { display: none; }
   .light-presets button { width: 40px; height: 40px; }
+  .light-color-panel { left: 48px; width: 224px; padding: 12px 14px 14px; }
+  .color-wheel-wrap { width: 114px; height: 114px; margin-block: 9px 11px; }
   .day-number { font-size: clamp(250px, 66vw, 410px); }
   .day-number[data-digits="2"] { font-size: clamp(205px, 55vw, 350px); }
   .enso-ring { width: min(90vw, 68vh, 590px); }

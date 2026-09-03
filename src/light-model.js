@@ -5,6 +5,10 @@ export const LIGHT_DPS = Object.freeze({
   temperature: "temp_value",
 });
 
+// The device reports which of these colour capabilities it exposes in its
+// status. Keep that choice server-side instead of assuming one fixed DP.
+export const COLOR_DPS = Object.freeze(["colour_data_v2", "colour_data"]);
+
 export const LIGHT_RANGES = Object.freeze({
   brightness: Object.freeze({ min: 25, max: 255 }),
   temperature: Object.freeze({ min: 0, max: 255 }),
@@ -35,6 +39,14 @@ export function temperatureAppFromRaw(raw) {
   return Math.round(((Number(raw) - min) / (max - min)) * 255);
 }
 
+export function temperatureRawFromPercent(percent) {
+  return temperatureRawFromApp(Math.min(255, Math.max(0, Math.round((Number(percent) / 100) * 255))));
+}
+
+export function temperaturePercentFromRaw(raw) {
+  return Math.min(100, Math.max(0, Math.round((temperatureAppFromRaw(raw) / 255) * 100)));
+}
+
 export const LIGHT_PRESETS = Object.freeze({
   chill: Object.freeze({ brightness: brightnessRawFromPercent(25), temperature: temperatureRawFromApp(206) }),
   bright: Object.freeze({ brightness: LIGHT_RANGES.brightness.max, temperature: LIGHT_RANGES.temperature.max }),
@@ -42,6 +54,55 @@ export const LIGHT_PRESETS = Object.freeze({
 
 function near(value, target, tolerance) {
   return Number.isFinite(value) && Math.abs(value - target) <= tolerance;
+}
+
+function hueToRgb(hue) {
+  const segment = 1 - Math.abs((hue / 60) % 2 - 1);
+  if (hue < 60) return [1, segment, 0];
+  if (hue < 120) return [segment, 1, 0];
+  if (hue < 180) return [0, 1, segment];
+  if (hue < 240) return [0, segment, 1];
+  if (hue < 300) return [segment, 0, 1];
+  return [1, 0, segment];
+}
+
+export function colorDpForValues(values) {
+  return COLOR_DPS.find((code) => Object.hasOwn(values, code)) || null;
+}
+
+export function rgbFromColorData(value) {
+  try {
+    const color = typeof value === "string" ? JSON.parse(value) : value;
+    const hue = Number(color?.h);
+    const saturation = Number(color?.s) / 1000;
+    const valuePart = Number(color?.v) / 1000;
+    if (![hue, saturation, valuePart].every(Number.isFinite)) return null;
+    const match = valuePart * (1 - saturation);
+    const base = hueToRgb(((hue % 360) + 360) % 360);
+    return Object.fromEntries(["r", "g", "b"].map((key, index) => [key, Math.round((base[index] * saturation + match) * 255)]));
+  } catch {
+    return null;
+  }
+}
+
+export function colorDataFromRgb({ r, g, b }) {
+  const channels = [r, g, b].map((channel) => Math.min(255, Math.max(0, Math.round(Number(channel)))));
+  if (!channels.every(Number.isFinite)) throw new Error("Expected RGB values");
+  const [red, green, blue] = channels.map((channel) => channel / 255);
+  const maximum = Math.max(red, green, blue);
+  const minimum = Math.min(red, green, blue);
+  const delta = maximum - minimum;
+  let hue = 0;
+  if (delta) {
+    if (maximum === red) hue = 60 * (((green - blue) / delta) % 6);
+    else if (maximum === green) hue = 60 * ((blue - red) / delta + 2);
+    else hue = 60 * ((red - green) / delta + 4);
+  }
+  return JSON.stringify({
+    h: Math.round((hue + 360) % 360),
+    s: Math.round((maximum ? delta / maximum : 0) * 1000),
+    v: Math.round(maximum * 1000),
+  });
 }
 
 export function presetForState({ on, workMode, brightnessRaw, temperatureRaw }) {
@@ -56,6 +117,7 @@ export function presetForState({ on, workMode, brightnessRaw, temperatureRaw }) 
 export function normalizeLightStatus(values) {
   const brightnessRaw = Number(values[LIGHT_DPS.brightness]);
   const temperatureRaw = Number(values[LIGHT_DPS.temperature]);
+  const colorDp = colorDpForValues(values);
   const state = {
     on: Boolean(values[LIGHT_DPS.power]),
     workMode: values[LIGHT_DPS.workMode] || null,
@@ -65,8 +127,10 @@ export function normalizeLightStatus(values) {
   return {
     on: state.on,
     brightness: state.brightnessRaw === null ? null : brightnessPercentFromRaw(state.brightnessRaw),
-    temperature: state.temperatureRaw === null ? null : temperatureAppFromRaw(state.temperatureRaw),
+    warmth: state.temperatureRaw === null ? null : temperaturePercentFromRaw(state.temperatureRaw),
     workMode: state.workMode,
+    color: colorDp ? rgbFromColorData(values[colorDp]) : null,
+    colorSupported: Boolean(colorDp),
     preset: presetForState(state),
   };
 }

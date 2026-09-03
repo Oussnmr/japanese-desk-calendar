@@ -4,8 +4,12 @@ import assert from "node:assert/strict";
 import {
   LIGHT_PRESETS,
   brightnessRawFromPercent,
+  colorDataFromRgb,
+  colorDpForValues,
   commandsForPreset,
   normalizeLightStatus,
+  rgbFromColorData,
+  temperatureRawFromPercent,
 } from "../src/light-model.js";
 
 test("CHILL converts 25 percent and app temperature 206 to device values", () => {
@@ -39,4 +43,16 @@ test("status normalization recognizes presets with Tuya rounding tolerance", () 
     bright_value: 64,
     temp_value: 206,
   }).preset, null);
+});
+
+test("color controls use the colour capability reported by this device", () => {
+  assert.equal(colorDpForValues({ colour_data_v2: "{}" }), "colour_data_v2");
+  assert.equal(colorDpForValues({ colour_data: "{}" }), "colour_data");
+  assert.equal(colorDpForValues({}), null);
+  assert.deepEqual(rgbFromColorData(colorDataFromRgb({ r: 255, g: 0, b: 0 })), { r: 255, g: 0, b: 0 });
+});
+
+test("warmth maps 0 to warm and 100 to cool device temperature", () => {
+  assert.equal(temperatureRawFromPercent(0), 0);
+  assert.equal(temperatureRawFromPercent(100), 255);
 });

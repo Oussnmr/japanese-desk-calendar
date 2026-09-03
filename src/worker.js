@@ -1,4 +1,7 @@
-import { LIGHT_DPS, commandsForPreset, normalizeLightStatus } from "./light-model.js";
+import {
+  LIGHT_DPS, brightnessRawFromPercent, colorDataFromRgb, colorDpForValues,
+  commandsForPreset, normalizeLightStatus, temperatureRawFromPercent,
+} from "./light-model.js";
 import { parseMawaqitPrayers } from "./prayer-model.js";
 
 const REGION_HOSTS = {
@@ -157,6 +160,43 @@ async function setLightPreset(env, name) {
   return sendLightCommands(env, commandsForPreset(name), (state) => state.preset === name);
 }
 
+async function setLightColor(env, color) {
+  const result = await deviceRequest(env, `/v1.0/iot-03/devices/${env.TUYA_DEVICE_ID}/status`);
+  const values = Object.fromEntries(result.map((item) => [item.code, item.value]));
+  const colorDp = colorDpForValues(values);
+  if (!colorDp) throw new Error("Light colour control is unsupported");
+  return sendLightCommands(env, [
+    { code: LIGHT_DPS.power, value: true },
+    { code: LIGHT_DPS.workMode, value: "colour" },
+    { code: colorDp, value: colorDataFromRgb(color) },
+  ], (state) => state.on && state.workMode === "colour");
+}
+
+async function setLightBrightness(env, brightness) {
+  if (!Number.isFinite(Number(brightness))) throw new Error("Invalid brightness");
+  const raw = brightnessRawFromPercent(brightness);
+  return sendLightCommands(env, [
+    { code: LIGHT_DPS.power, value: true },
+    { code: LIGHT_DPS.brightness, value: raw },
+  ], (state) => state.on && Math.abs(Number(state.brightness) - Number(brightness)) <= 2);
+}
+
+async function setLightWarmth(env, warmth) {
+  if (!Number.isFinite(Number(warmth))) throw new Error("Invalid warmth");
+  const raw = temperatureRawFromPercent(warmth);
+  return sendLightCommands(env, [
+    { code: LIGHT_DPS.power, value: true },
+    { code: LIGHT_DPS.workMode, value: "white" },
+    { code: LIGHT_DPS.temperature, value: raw },
+  ], (state) => state.on && state.workMode === "white" && Math.abs(Number(state.warmth) - Number(warmth)) <= 2);
+}
+
+async function requestJson(request) {
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object") throw new Error("Invalid request");
+  return body;
+}
+
 async function prayerTimes() {
   if (prayerCache?.expiresAt > Date.now()) return prayerCache.value;
   try {
@@ -209,6 +249,15 @@ export default {
       if (url.pathname === "/api/light/preset/bright" && request.method === "POST") return json(await setLightPreset(env, "bright"));
       if (url.pathname === "/api/light/on" && request.method === "POST") return json(await setLight(env, true));
       if (url.pathname === "/api/light/off" && request.method === "POST") return json(await setLight(env, false));
+      if (url.pathname === "/api/light/color" && request.method === "POST") return json(await setLightColor(env, await requestJson(request)));
+      if (url.pathname === "/api/light/brightness" && request.method === "POST") {
+        const { brightness } = await requestJson(request);
+        return json(await setLightBrightness(env, brightness));
+      }
+      if (url.pathname === "/api/light/warmth" && request.method === "POST") {
+        const { warmth } = await requestJson(request);
+        return json(await setLightWarmth(env, warmth));
+      }
       return json({ error: "Not found" }, 404);
     } catch {
       return json({ error: "Light service unavailable" }, 503);

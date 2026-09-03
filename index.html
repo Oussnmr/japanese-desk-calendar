@@ -50,6 +50,19 @@
           <button id="light-power" type="button" aria-label="Turn light on" aria-pressed="false" disabled>ON</button>
           <button id="light-chill" type="button" aria-pressed="false" disabled>CHILL</button>
           <button id="light-bright" type="button" aria-pressed="false" disabled>BRIGHT</button>
+          <button id="light-color" type="button" aria-label="Open RGB light controls" aria-pressed="false" aria-expanded="false" aria-controls="light-color-panel" disabled>COLOR</button>
+          <section class="light-color-panel" id="light-color-panel" aria-label="Custom light color" hidden>
+            <div class="color-panel-heading"><span>色</span><b>COLOR</b><output id="light-color-hex">#E52B1A</output></div>
+            <div class="color-wheel-wrap">
+              <div id="light-color-wheel" class="color-wheel" role="slider" tabindex="0" aria-label="RGB color wheel" aria-valuemin="0" aria-valuemax="359" aria-valuenow="7"></div>
+              <span class="color-wheel-handle" id="light-color-handle" aria-hidden="true"></span>
+            </div>
+            <label class="light-range-label" for="light-intensity"><span>INTENSITY</span><output id="light-intensity-value">100%</output></label>
+            <input id="light-intensity" class="light-range" type="range" min="0" max="100" value="100" aria-label="Light intensity">
+            <label class="light-range-label warmth-label" for="light-warmth"><span>WARMTH</span><output id="light-warmth-value">100%</output></label>
+            <div class="warmth-ends" aria-hidden="true"><span>WARM</span><span>COOL</span></div>
+            <input id="light-warmth" class="light-range light-warmth" type="range" min="0" max="100" value="100" aria-label="Light warmth; 0 percent warm, 100 percent cool">
+          </section>
           <span class="light-status" id="light-status" aria-live="polite">—</span>
         </section>
       </section>

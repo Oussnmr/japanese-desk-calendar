@@ -13,11 +13,12 @@ import tinytuya
 ROOT = Path(__file__).resolve().parent
 ALLOWED_ORIGIN = "https://oussnmr.github.io"
 STATIC_ROOT_FILES = {"index.html", "styles.css", "manifest.webmanifest", "service-worker.js"}
-STATIC_DIRS = {"js", "icons", "fonts"}
+STATIC_DIRS = {"js", "icons", "fonts", "assets"}
 POWER_DP = "switch_led"
 MODE_DP = "work_mode"
 BRIGHTNESS_DP = "bright_value"
 TEMPERATURE_DP = "temp_value"
+COLOR_DPS = ("colour_data_v2", "colour_data")
 BRIGHTNESS_MAX = 255
 CHILL_BRIGHTNESS = round(BRIGHTNESS_MAX * 0.25)
 CHILL_TEMPERATURE = 206
@@ -105,6 +106,86 @@ def apply_preset(name):
     )
 
 
+def percent_raw(value):
+    if not isinstance(value, (int, float)):
+        raise RuntimeError("Invalid percentage")
+    return max(0, min(100, round(value)))
+
+
+def color_data(color):
+    try:
+        red, green, blue = (max(0, min(255, round(float(color[key])))) / 255 for key in ("r", "g", "b"))
+    except (KeyError, TypeError, ValueError):
+        raise RuntimeError("Invalid RGB color") from None
+    maximum, minimum = max(red, green, blue), min(red, green, blue)
+    delta = maximum - minimum
+    hue = 0
+    if delta:
+        if maximum == red:
+            hue = 60 * ((green - blue) / delta % 6)
+        elif maximum == green:
+            hue = 60 * ((blue - red) / delta + 2)
+        else:
+            hue = 60 * ((red - green) / delta + 4)
+    return json.dumps({"h": round(hue), "s": round((delta / maximum if maximum else 0) * 1000), "v": round(maximum * 1000)})
+
+
+def color_code(values):
+    return next((code for code in COLOR_DPS if code in values), None)
+
+
+def rgb_from_color_data(value):
+    try:
+        color = json.loads(value) if isinstance(value, str) else value
+        hue, saturation, brightness = float(color["h"]) % 360, float(color["s"]) / 1000, float(color["v"]) / 1000
+        chroma = brightness * saturation
+        match = brightness - chroma
+        segment = chroma * (1 - abs((hue / 60) % 2 - 1))
+        if hue < 60:
+            base = (chroma, segment, 0)
+        elif hue < 120:
+            base = (segment, chroma, 0)
+        elif hue < 180:
+            base = (0, chroma, segment)
+        elif hue < 240:
+            base = (0, segment, chroma)
+        elif hue < 300:
+            base = (segment, 0, chroma)
+        else:
+            base = (chroma, 0, segment)
+        return dict(zip(("r", "g", "b"), (round((channel + match) * 255) for channel in base)))
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def apply_color(color):
+    response = cloud().getstatus(CONFIG["TUYA_DEVICE_ID"])
+    values = {item["code"]: item["value"] for item in response.get("result", [])}
+    code = color_code(values)
+    if not code:
+        raise RuntimeError("Color control unsupported")
+    return send_commands(
+        [{"code": POWER_DP, "value": True}, {"code": MODE_DP, "value": "colour"}, {"code": code, "value": color_data(color)}],
+        lambda state: state["on"] and state["workMode"] == "colour",
+    )
+
+
+def apply_brightness(value):
+    raw = max(25, round(percent_raw(value) / 100 * BRIGHTNESS_MAX))
+    return send_commands(
+        [{"code": POWER_DP, "value": True}, {"code": BRIGHTNESS_DP, "value": raw}],
+        lambda state: state["on"] and state["brightness"] is not None and abs(state["brightness"] - percent_raw(value)) <= 2,
+    )
+
+
+def apply_warmth(value):
+    raw = round(percent_raw(value) / 100 * 255)
+    return send_commands(
+        [{"code": POWER_DP, "value": True}, {"code": MODE_DP, "value": "white"}, {"code": TEMPERATURE_DP, "value": raw}],
+        lambda state: state["on"] and state["workMode"] == "white" and abs(state["warmth"] - percent_raw(value)) <= 2,
+    )
+
+
 def status():
     response = cloud().getstatus(CONFIG["TUYA_DEVICE_ID"])
     if not response.get("success"):
@@ -114,6 +195,7 @@ def status():
     brightness_raw = result.get(BRIGHTNESS_DP)
     temperature = result.get(TEMPERATURE_DP)
     mode = result.get(MODE_DP)
+    selected_color_dp = color_code(result)
     preset = None
     if on and mode == "white" and isinstance(brightness_raw, (int, float)) and isinstance(temperature, (int, float)):
         if abs(brightness_raw - CHILL_BRIGHTNESS) <= PRESET_TOLERANCE and abs(temperature - CHILL_TEMPERATURE) <= PRESET_TOLERANCE:
@@ -124,8 +206,11 @@ def status():
     return {
         "on": on,
         "brightness": brightness,
+        "warmth": round(temperature / 255 * 100) if isinstance(temperature, (int, float)) else None,
         "temperature": temperature,
         "workMode": mode,
+        "color": rgb_from_color_data(result[selected_color_dp]) if selected_color_dp else None,
+        "colorSupported": bool(selected_color_dp),
         "preset": preset,
     }
 
@@ -214,7 +299,8 @@ class BridgeHandler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         actions = {"/api/light/on": True, "/api/light/off": False}
         presets = {"/api/light/preset/chill": "chill", "/api/light/preset/bright": "bright"}
-        if path not in actions and path not in presets and path != "/api/light/toggle":
+        controls = {"/api/light/color", "/api/light/brightness", "/api/light/warmth"}
+        if path not in actions and path not in presets and path != "/api/light/toggle" and path not in controls:
             self.respond_json(404, {"error": "not found"})
             return
         try:
@@ -222,9 +308,18 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 self.respond_json(200, power(not status()["on"]))
             elif path in presets:
                 self.respond_json(200, apply_preset(presets[path]))
+            elif path in controls:
+                length = int(self.headers.get("Content-Length", "0"))
+                payload = json.loads(self.rfile.read(length) or b"{}")
+                if path == "/api/light/color":
+                    self.respond_json(200, apply_color(payload))
+                elif path == "/api/light/brightness":
+                    self.respond_json(200, apply_brightness(payload.get("brightness")))
+                else:
+                    self.respond_json(200, apply_warmth(payload.get("warmth")))
             else:
                 self.respond_json(200, power(actions[path]))
-        except RuntimeError:
+        except (RuntimeError, ValueError, json.JSONDecodeError):
             self.respond_json(503, {"error": "unavailable"})
 
     def log_message(self, *_args):

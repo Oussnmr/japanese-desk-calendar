@@ -48,7 +48,7 @@ export function temperaturePercentFromRaw(raw) {
 }
 
 export const LIGHT_PRESETS = Object.freeze({
-  chill: Object.freeze({ brightness: brightnessRawFromPercent(25), temperature: temperatureRawFromApp(206) }),
+  chill: Object.freeze({ brightness: brightnessRawFromPercent(35), temperature: temperatureRawFromPercent(50) }),
   bright: Object.freeze({ brightness: LIGHT_RANGES.brightness.max, temperature: LIGHT_RANGES.temperature.max }),
 });
 

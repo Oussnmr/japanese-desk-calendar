@@ -33,7 +33,7 @@ const elements = Object.fromEntries(
     "year", "weekday-ja", "weekday-en", "date-small", "hero-date", "day-number", "month-number", "prayer-panel", "prayer-list",
     "month-en", "mini-calendar", "clock", "weather-temp", "weather-condition",
     "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
-    "light-controls", "light-power", "light-chill", "light-bright", "light-color", "light-color-panel", "light-color-wheel", "light-color-handle", "light-color-hex", "light-intensity", "light-intensity-value", "light-warmth", "light-warmth-value", "light-status",
+    "light-controls", "light-power", "light-chill", "light-color", "light-color-panel", "light-color-wheel", "light-color-handle", "light-color-hex", "light-intensity", "light-intensity-value", "light-warmth", "light-warmth-value", "light-status",
     "stopwatch", "stopwatch-toggle", "stopwatch-clear",
   ].map((id) => [id, document.getElementById(id)]),
 );
@@ -59,11 +59,15 @@ function showLightState(state, available = true) {
   elements["light-power"].textContent = on ? "OFF" : "ON";
   elements["light-power"].setAttribute("aria-label", on ? "Turn light off" : "Turn light on");
   elements["light-power"].setAttribute("aria-pressed", String(on));
-  elements["light-chill"].setAttribute("aria-pressed", String(on && state?.preset === "chill"));
-  elements["light-bright"].setAttribute("aria-pressed", String(on && state?.preset === "bright"));
+  const activePreset = on && ["chill", "bright"].includes(state?.preset) ? state.preset : null;
+  elements["light-chill"].textContent = (activePreset || "chill").toUpperCase();
+  elements["light-chill"].setAttribute("aria-pressed", String(Boolean(activePreset)));
+  elements["light-chill"].setAttribute("aria-label", activePreset
+    ? `Switch from ${activePreset.toUpperCase()} to ${activePreset === "chill" ? "BRIGHT" : "CHILL"}`
+    : "Set CHILL light profile");
   elements["light-color"].setAttribute("aria-pressed", String(on && state?.workMode === "colour"));
   elements["light-color"].disabled = disabled || !state?.colorSupported;
-  for (const id of ["light-power", "light-chill", "light-bright"]) elements[id].disabled = disabled;
+  for (const id of ["light-power", "light-chill"]) elements[id].disabled = disabled;
   if (Number.isFinite(state?.brightness)) setRangeValue("light-intensity", state.brightness);
   if (Number.isFinite(state?.warmth)) setRangeValue("light-warmth", state.warmth);
   if (state?.color) setColorValue(state.color);
@@ -380,8 +384,10 @@ elements["theme-toggle"].addEventListener("click", () => {
   applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
 });
 elements["light-power"].addEventListener("click", () => commandLight("/api/light/toggle"));
-elements["light-chill"].addEventListener("click", () => commandLight("/api/light/preset/chill"));
-elements["light-bright"].addEventListener("click", () => commandLight("/api/light/preset/bright"));
+elements["light-chill"].addEventListener("click", () => {
+  const nextPreset = lightState?.preset === "chill" ? "bright" : "chill";
+  commandLight(`/api/light/preset/${nextPreset}`);
+});
 elements["light-color"].addEventListener("click", async () => {
   const open = !colorPanelOpen;
   setColorPanel(open, open);

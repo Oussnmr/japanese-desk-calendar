@@ -21,9 +21,10 @@
     <title>Japanese Desk Calendar</title>
   </head>
   <body>
+    <button class="editor-toggle" id="calendar-editor-toggle" type="button" aria-label="Edit calendar layout" aria-expanded="false" aria-controls="calendar-editor">✎</button>
     <main class="calendar-sheet" aria-label="Japanese desk calendar for Brussels">
-      <header class="masthead">
-        <p class="edition"><strong>日々の暦</strong><span>DAILY CALENDAR · BRUSSELS</span></p>
+      <header class="masthead" data-editor-target="masthead">
+        <p class="edition"><strong>日々の暦</strong><span id="edition-title">DAILY CALENDAR · BRUSSELS</span></p>
         <p class="year" id="year">2026</p>
         <div class="masthead-tools">
           <div class="masthead-meta">
@@ -36,7 +37,7 @@
         </div>
       </header>
 
-      <section class="weekday-panel" aria-label="Day of the week">
+      <section class="weekday-panel" data-editor-target="weekday" aria-label="Day of the week">
         <section class="prayer-panel" id="prayer-panel" aria-label="Prayer times at Masjid AL-ABIDIN" hidden>
           <p><span>礼拝</span> SALAH</p>
           <div class="prayer-list" id="prayer-list"></div>
@@ -68,20 +69,20 @@
         </section>
       </section>
 
-      <section class="hero-date" id="hero-date" data-digits="1" aria-label="Current day">
+      <section class="hero-date" id="hero-date" data-editor-target="hero" data-digits="1" aria-label="Current day">
         <img class="enso-ring" src="./assets/enso-brush.png" alt="" width="1254" height="1254" decoding="async" draggable="false">
         <p class="day-number" id="day-number">2</p>
-        <p class="hero-caption"><span>日</span> THE DAY, PRESENT AND UNREPEATED</p>
+        <p class="hero-caption" id="hero-caption" data-editor-target="caption"><span>日</span> <span id="hero-caption-text">THE DAY, PRESENT AND UNREPEATED</span></p>
       </section>
 
-      <aside class="month-panel" aria-label="Month and monthly calendar">
+      <aside class="month-panel" data-editor-target="month" aria-label="Month and monthly calendar">
         <div class="month-heading">
           <div class="month-ja"><span id="month-number">9</span><small>月</small></div>
           <p id="month-en">SEPTEMBER</p>
         </div>
         <div class="month-rule" aria-hidden="true"></div>
         <div class="mini-calendar" id="mini-calendar"></div>
-        <section class="weather" aria-label="Weather in Brussels">
+        <section class="weather" data-editor-target="weather" aria-label="Weather in Brussels">
           <div class="weather-title"><span>天気</span> WEATHER</div>
           <div class="weather-main">
             <strong id="weather-temp">--°</strong>
@@ -96,13 +97,13 @@
         </section>
       </aside>
 
-      <footer class="time-band">
+      <footer class="time-band" data-editor-target="footer">
         <div class="footer-left">
           <div class="stopwatch-controls" aria-label="Stopwatch controls">
             <button id="stopwatch-toggle" type="button" aria-pressed="false">START</button>
             <button id="stopwatch-clear" type="button" disabled>CLEAR</button>
           </div>
-          <div class="location"><b>ブリュッセル</b><span>BRUSSELS · BELGIUM</span></div>
+          <div class="location"><b>ブリュッセル</b><span id="location-detail">BRUSSELS · BELGIUM</span></div>
         </div>
         <div class="clock-wrap">
           <time class="clock" id="clock" datetime="00:00:00">00:00:00</time>
@@ -111,6 +112,42 @@
         <p class="clock-label">現在時刻<br><span>CURRENT TIME</span></p>
       </footer>
     </main>
+
+    <aside class="calendar-editor" id="calendar-editor" aria-label="Calendar editor" hidden>
+      <header class="editor-heading">
+        <div><span>編</span><b>EDIT CALENDAR</b></div>
+        <button id="calendar-editor-close" type="button" aria-label="Close editor">×</button>
+      </header>
+      <p class="editor-note">Changes stay on this device until you save or reset them.</p>
+      <label class="editor-field">ELEMENT
+        <select id="editor-target">
+          <option value="masthead">Header</option>
+          <option value="weekday">Weekday</option>
+          <option value="hero">Day / ensō</option>
+          <option value="caption">Day caption</option>
+          <option value="month">Month</option>
+          <option value="weather">Weather</option>
+          <option value="footer">Clock band</option>
+        </select>
+      </label>
+      <label class="editor-field">TEXT <input id="editor-text" type="text" maxlength="72" autocomplete="off"></label>
+      <div class="editor-sliders">
+        <label>HORIZONTAL <output id="editor-x-value">0</output><input id="editor-x" type="range" min="-160" max="160" value="0"></label>
+        <label>VERTICAL <output id="editor-y-value">0</output><input id="editor-y" type="range" min="-160" max="160" value="0"></label>
+        <label>SCALE <output id="editor-scale-value">100%</output><input id="editor-scale" type="range" min="70" max="140" value="100"></label>
+        <label>WIDTH <output id="editor-width-value">100%</output><input id="editor-width" type="range" min="60" max="140" value="100"></label>
+      </div>
+      <div class="editor-profile">
+        <label class="editor-field">PROFILE <input id="editor-profile-name" type="text" maxlength="28" placeholder="NEW PROFILE" autocomplete="off"></label>
+        <div class="editor-actions">
+          <button id="editor-save-profile" type="button">SAVE PROFILE</button>
+          <button id="editor-reset" type="button">RESET ORIGINAL</button>
+        </div>
+        <label class="editor-field">SAVED PROFILES
+          <select id="editor-profile-list"><option value="">CHOOSE A PROFILE</option></select>
+        </label>
+      </div>
+    </aside>
 
     <noscript>This calendar needs JavaScript for live date, time, and weather.</noscript>
     <script type="module" src="./js/main.js"></script>

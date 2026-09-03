@@ -6,6 +6,8 @@ const WEATHER_REFRESH_MS = 20 * 60 * 1000;
 const LIGHT_REFRESH_MS = 30 * 1000;
 const PRAYER_REFRESH_MS = 30 * 60 * 1000;
 const THEME_KEY = "jdc-theme";
+const EDITOR_DRAFT_KEY = "jdc-calendar-editor-draft";
+const EDITOR_PROFILES_KEY = "jdc-calendar-editor-profiles";
 const WEEKDAYS_JA = ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"];
 const WEEKDAYS_EN = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const MONTHS_EN = [
@@ -35,6 +37,7 @@ const elements = Object.fromEntries(
     "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
     "light-controls", "light-power", "light-chill", "light-color", "light-color-panel", "light-color-wheel", "light-color-handle", "light-color-hex", "light-saturation", "light-saturation-value", "light-intensity", "light-intensity-value", "light-warmth", "light-warmth-value", "light-status",
     "stopwatch", "stopwatch-toggle", "stopwatch-clear",
+    "calendar-editor-toggle", "calendar-editor", "calendar-editor-close", "editor-target", "editor-text", "editor-x", "editor-x-value", "editor-y", "editor-y-value", "editor-scale", "editor-scale-value", "editor-width", "editor-width-value", "editor-profile-name", "editor-save-profile", "editor-reset", "editor-profile-list",
   ].map((id) => [id, document.getElementById(id)]),
 );
 
@@ -51,6 +54,137 @@ let colorRequestTimer = null;
 let colorRequestInFlight = false;
 let colorRequestQueued = null;
 let colorControls = { hue: 0, saturation: 100, intensity: 100 };
+let editorOpen = false;
+let editorState = { overrides: {}, text: {} };
+
+const EDITOR_TARGETS = {
+  masthead: { selector: '[data-editor-target="masthead"]', textId: "edition-title" },
+  weekday: { selector: '[data-editor-target="weekday"]' },
+  hero: { selector: '[data-editor-target="hero"]' },
+  caption: { selector: '[data-editor-target="caption"]', textId: "hero-caption-text" },
+  month: { selector: '[data-editor-target="month"]' },
+  weather: { selector: '[data-editor-target="weather"]' },
+  footer: { selector: '[data-editor-target="footer"]', textId: "location-detail" },
+};
+const editorDefaults = { x: 0, y: 0, scale: 100, width: 100 };
+
+function storedJson(key, fallback) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "");
+    return value && typeof value === "object" ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function editorValues(target) {
+  const values = editorState.overrides[target] || {};
+  return { ...editorDefaults, ...values };
+}
+
+function updateEditorProfileList() {
+  const profiles = storedJson(EDITOR_PROFILES_KEY, {});
+  const current = elements["editor-profile-list"].value;
+  elements["editor-profile-list"].replaceChildren(new Option("CHOOSE A PROFILE", ""));
+  for (const name of Object.keys(profiles).sort((left, right) => left.localeCompare(right))) {
+    elements["editor-profile-list"].add(new Option(name, name));
+  }
+  elements["editor-profile-list"].value = profiles[current] ? current : "";
+}
+
+function applyEditorState() {
+  const sheet = document.querySelector(".calendar-sheet");
+  for (const [name, target] of Object.entries(EDITOR_TARGETS)) {
+    const node = document.querySelector(target.selector);
+    if (!node) continue;
+    const values = editorValues(name);
+    node.style.setProperty("--editor-x", `${values.x}px`);
+    node.style.setProperty("--editor-y", `${values.y}px`);
+    node.style.setProperty("--editor-scale", String(values.scale / 100));
+    node.style.setProperty("--editor-width", `${values.width}%`);
+    if (target.textId) {
+      const textNode = document.getElementById(target.textId);
+      if (textNode) {
+        if (!textNode.dataset.originalText) textNode.dataset.originalText = textNode.textContent;
+        textNode.textContent = editorState.text[name] ?? textNode.dataset.originalText;
+      }
+    }
+  }
+  sheet.classList.toggle("editor-active", Object.keys(editorState.overrides).length > 0);
+}
+
+function saveEditorDraft() {
+  try { localStorage.setItem(EDITOR_DRAFT_KEY, JSON.stringify(editorState)); } catch {}
+}
+
+function updateEditorFields() {
+  const target = elements["editor-target"].value;
+  const values = editorValues(target);
+  elements["editor-x"].value = values.x;
+  elements["editor-y"].value = values.y;
+  elements["editor-scale"].value = values.scale;
+  elements["editor-width"].value = values.width;
+  elements["editor-x-value"].textContent = values.x;
+  elements["editor-y-value"].textContent = values.y;
+  elements["editor-scale-value"].textContent = `${values.scale}%`;
+  elements["editor-width-value"].textContent = `${values.width}%`;
+  const textId = EDITOR_TARGETS[target].textId;
+  const textNode = textId ? document.getElementById(textId) : null;
+  elements["editor-text"].disabled = !textNode;
+  elements["editor-text"].value = textNode ? (editorState.text[target] ?? textNode.dataset.originalText ?? textNode.textContent) : "";
+}
+
+function setEditorOpen(open) {
+  editorOpen = open;
+  elements["calendar-editor"].hidden = !open;
+  elements["calendar-editor-toggle"].setAttribute("aria-expanded", String(open));
+  if (open) {
+    updateEditorProfileList();
+    updateEditorFields();
+    elements["editor-target"].focus({ preventScroll: true });
+  }
+}
+
+function updateEditorValue(key, value) {
+  const target = elements["editor-target"].value;
+  editorState.overrides[target] = { ...editorValues(target), [key]: Number(value) };
+  applyEditorState();
+  saveEditorDraft();
+  updateEditorFields();
+}
+
+function resetEditor() {
+  editorState = { overrides: {}, text: {} };
+  try { localStorage.removeItem(EDITOR_DRAFT_KEY); } catch {}
+  applyEditorState();
+  updateEditorFields();
+}
+
+function saveEditorProfile() {
+  const name = elements["editor-profile-name"].value.trim().toUpperCase();
+  if (!name) {
+    elements["editor-profile-name"].focus({ preventScroll: true });
+    return;
+  }
+  const profiles = storedJson(EDITOR_PROFILES_KEY, {});
+  profiles[name] = structuredClone(editorState);
+  try { localStorage.setItem(EDITOR_PROFILES_KEY, JSON.stringify(profiles)); } catch {}
+  elements["editor-profile-name"].value = "";
+  updateEditorProfileList();
+  elements["editor-profile-list"].value = name;
+}
+
+function loadEditorProfile(name) {
+  const profile = storedJson(EDITOR_PROFILES_KEY, {})[name];
+  if (!profile) return;
+  editorState = {
+    overrides: profile.overrides && typeof profile.overrides === "object" ? profile.overrides : {},
+    text: profile.text && typeof profile.text === "object" ? profile.text : {},
+  };
+  applyEditorState();
+  saveEditorDraft();
+  updateEditorFields();
+}
 
 function showLightState(state, available = true) {
   lightState = state;
@@ -127,7 +261,7 @@ function setColorControls(next) {
   };
   const { hue, saturation, intensity } = colorControls;
   const color = rgbForHue(hue, saturation, intensity);
-  const radius = 49;
+  const radius = Math.max(0, elements["light-color-wheel"].clientWidth / 2 - 8);
   const radians = (hue - 90) * Math.PI / 180;
   elements["light-color-wheel"].setAttribute("aria-valuenow", String(Math.round(hue)));
   elements["light-color-wheel"].setAttribute("aria-valuetext", rgbToHex(color));
@@ -378,9 +512,34 @@ document.addEventListener("visibilitychange", () => {
 });
 
 applyTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+const savedEditorDraft = storedJson(EDITOR_DRAFT_KEY, {});
+editorState = {
+  overrides: savedEditorDraft.overrides && typeof savedEditorDraft.overrides === "object" ? savedEditorDraft.overrides : {},
+  text: savedEditorDraft.text && typeof savedEditorDraft.text === "object" ? savedEditorDraft.text : {},
+};
+applyEditorState();
 elements["theme-toggle"].addEventListener("click", () => {
   applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
 });
+elements["calendar-editor-toggle"].addEventListener("click", () => setEditorOpen(!editorOpen));
+elements["calendar-editor-close"].addEventListener("click", () => {
+  setEditorOpen(false);
+  elements["calendar-editor-toggle"].focus({ preventScroll: true });
+});
+elements["editor-target"].addEventListener("change", updateEditorFields);
+for (const [id, key] of [["editor-x", "x"], ["editor-y", "y"], ["editor-scale", "scale"], ["editor-width", "width"]]) {
+  elements[id].addEventListener("input", () => updateEditorValue(key, elements[id].value));
+}
+elements["editor-text"].addEventListener("input", () => {
+  const target = elements["editor-target"].value;
+  if (!EDITOR_TARGETS[target].textId) return;
+  editorState.text[target] = elements["editor-text"].value;
+  applyEditorState();
+  saveEditorDraft();
+});
+elements["editor-save-profile"].addEventListener("click", saveEditorProfile);
+elements["editor-reset"].addEventListener("click", resetEditor);
+elements["editor-profile-list"].addEventListener("change", () => loadEditorProfile(elements["editor-profile-list"].value));
 elements["light-power"].addEventListener("click", () => commandLight("/api/light/toggle"));
 elements["light-chill"].addEventListener("click", () => {
   const nextPreset = lightState?.preset === "chill" ? "bright" : "chill";
@@ -432,6 +591,11 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && colorPanelOpen) {
     setColorPanel(false);
     elements["light-color"].focus({ preventScroll: true });
+    return;
+  }
+  if (event.key === "Escape" && editorOpen) {
+    setEditorOpen(false);
+    elements["calendar-editor-toggle"].focus({ preventScroll: true });
   }
 });
 elements["stopwatch-toggle"].addEventListener("click", toggleStopwatch);

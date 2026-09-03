@@ -24,17 +24,18 @@
     <button class="editor-toggle" id="calendar-editor-toggle" type="button" aria-label="Edit calendar layout" aria-expanded="false" aria-controls="calendar-editor">✎</button>
     <main class="calendar-sheet" aria-label="Japanese desk calendar for Brussels">
       <header class="masthead" data-editor-target="masthead">
-        <p class="edition"><strong>日々の暦</strong><span id="edition-title">DAILY CALENDAR · BRUSSELS</span></p>
-        <p class="year" id="year">2026</p>
+        <p class="edition" data-editor-target="edition"><strong>日々の暦</strong><span id="edition-title">DAILY CALENDAR · BRUSSELS</span></p>
+        <p class="year" id="year" data-editor-target="year">2026</p>
         <div class="masthead-tools">
           <div class="masthead-meta">
-            <p class="timezone">欧州中央時間<br><span>EUROPE / BRUSSELS</span></p>
+            <p class="timezone" data-editor-target="timezone">欧州中央時間<br><span>EUROPE / BRUSSELS</span></p>
           </div>
           <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Enable dark mode" aria-pressed="false">
             <span class="theme-sun" aria-hidden="true">☼</span>
             <span class="theme-moon" aria-hidden="true">☾</span>
           </button>
         </div>
+        <span class="masthead-rule" data-editor-target="masthead-rule" aria-hidden="true"></span>
       </header>
 
       <section class="weekday-panel" data-editor-target="weekday" aria-label="Day of the week">
@@ -42,11 +43,11 @@
           <p><span>礼拝</span> SALAH</p>
           <div class="prayer-list" id="prayer-list"></div>
         </section>
-        <div class="weekday-ja" id="weekday-ja">水曜日</div>
-        <div class="weekday-en" id="weekday-en">WEDNESDAY</div>
-        <div class="rule" aria-hidden="true"></div>
-        <p class="today-mark"><b>今日</b><span>TODAY</span></p>
-        <p class="date-small" id="date-small">2 · SEPTEMBER</p>
+        <div class="weekday-ja" id="weekday-ja" data-editor-target="weekday-ja">水曜日</div>
+        <div class="weekday-en" id="weekday-en" data-editor-target="weekday-en">WEDNESDAY</div>
+        <div class="rule" data-editor-target="weekday-rule" aria-hidden="true"></div>
+        <p class="today-mark" data-editor-target="today"><b>今日</b><span>TODAY</span></p>
+        <p class="date-small" id="date-small" data-editor-target="today-date">2 · SEPTEMBER</p>
         <section class="light-presets" id="light-controls" data-editor-target="lights" aria-label="Light controls" aria-busy="false">
           <button id="light-power" type="button" aria-label="Turn light on" aria-pressed="false" disabled>ON</button>
           <button id="light-chill" type="button" aria-pressed="false" disabled>CHILL</button>
@@ -69,18 +70,18 @@
         </section>
       </section>
 
-      <section class="hero-date" id="hero-date" data-editor-target="hero" data-digits="1" aria-label="Current day">
-        <img class="enso-ring" id="enso-ring" src="./assets/enso-brush.png" alt="" width="1254" height="1254" decoding="async" draggable="false">
-        <p class="day-number" id="day-number">2</p>
+      <section class="hero-date" id="hero-date" data-digits="1" aria-label="Current day">
+        <img class="enso-ring" id="enso-ring" data-editor-target="enso" src="./assets/enso-brush.png" alt="" width="1254" height="1254" decoding="async" draggable="false">
+        <p class="day-number" id="day-number" data-editor-target="day">2</p>
         <p class="hero-caption" id="hero-caption" data-editor-target="caption"><span>日</span> <span id="hero-caption-text">THE DAY, PRESENT AND UNREPEATED</span></p>
       </section>
 
       <aside class="month-panel" data-editor-target="month" aria-label="Month and monthly calendar">
-        <div class="month-heading">
+        <div class="month-heading" data-editor-target="month-heading">
           <div class="month-ja"><span id="month-number">9</span><small>月</small></div>
           <p id="month-en">SEPTEMBER</p>
         </div>
-        <div class="month-rule" aria-hidden="true"></div>
+        <div class="month-rule" data-editor-target="month-rule" aria-hidden="true"></div>
         <div class="mini-calendar" id="mini-calendar" data-editor-target="calendar"></div>
         <section class="weather" data-editor-target="weather" aria-label="Weather in Brussels">
           <div class="weather-title"><span>天気</span> WEATHER</div>
@@ -98,24 +99,29 @@
       </aside>
 
       <footer class="time-band" data-editor-target="footer">
+        <span class="time-band-rule" data-editor-target="time-rule" aria-hidden="true"></span>
         <div class="footer-left">
           <div class="stopwatch-controls" data-editor-target="stopwatch" aria-label="Stopwatch controls">
             <button id="stopwatch-toggle" type="button" aria-pressed="false">START</button>
             <button id="stopwatch-clear" type="button" disabled>CLEAR</button>
           </div>
-          <div class="location"><b>ブリュッセル</b><span id="location-detail">BRUSSELS · BELGIUM</span></div>
+          <div class="location" data-editor-target="location"><b>ブリュッセル</b><span id="location-detail">BRUSSELS · BELGIUM</span></div>
         </div>
         <div class="clock-wrap" data-editor-target="clock">
           <time class="clock" id="clock" datetime="00:00:00">00:00:00</time>
-          <time class="stopwatch" id="stopwatch" datetime="PT0S" hidden aria-live="off">00:00.0</time>
+          <time class="stopwatch" id="stopwatch" data-editor-target="stopwatch-display" datetime="PT0S" hidden aria-live="off">00:00.0</time>
         </div>
-        <p class="clock-label">現在時刻<br><span>CURRENT TIME</span></p>
+        <p class="clock-label" data-editor-target="current-time">現在時刻<br><span>CURRENT TIME</span></p>
       </footer>
     </main>
 
     <aside class="calendar-editor" id="calendar-editor" aria-label="Calendar editor" hidden>
       <header class="editor-heading">
         <div><span>編</span><b>EDIT CALENDAR</b></div>
+        <div class="editor-history" aria-label="Edit history">
+          <button id="editor-undo" type="button" aria-label="Undo change" title="Ctrl Z">↶</button>
+          <button id="editor-redo" type="button" aria-label="Redo change" title="Ctrl Y">↷</button>
+        </div>
         <span class="editor-drag-cue" aria-hidden="true">•••</span>
         <button id="calendar-editor-close" type="button" aria-label="Close editor">×</button>
       </header>
@@ -123,16 +129,32 @@
       <label class="editor-field">ELEMENT
         <select id="editor-target">
           <option value="masthead">Header</option>
+          <option value="edition">Daily Calendar</option>
+          <option value="year">Year</option>
+          <option value="timezone">Europe / Brussels</option>
+          <option value="masthead-rule">Header separator</option>
           <option value="weekday">Weekday</option>
+          <option value="weekday-ja">Weekday Japanese</option>
+          <option value="weekday-en">Weekday English</option>
+          <option value="weekday-rule">Weekday separator</option>
+          <option value="today">Today</option>
+          <option value="today-date">Date line</option>
           <option value="prayers">Prayer calendar</option>
           <option value="lights">Light controls</option>
-          <option value="hero">Day / ensō</option>
+          <option value="day">Day number</option>
+          <option value="enso">Ensō / image</option>
           <option value="caption">Day caption</option>
           <option value="month">Month</option>
+          <option value="month-heading">Month heading</option>
+          <option value="month-rule">Month separator</option>
           <option value="calendar">Month calendar</option>
           <option value="weather">Weather</option>
-          <option value="stopwatch">Stopwatch</option>
+          <option value="stopwatch">Stopwatch controls</option>
+          <option value="stopwatch-display">Stopwatch display</option>
+          <option value="location">Brussels / Belgium</option>
           <option value="clock">Clock</option>
+          <option value="current-time">Current Time</option>
+          <option value="time-rule">Clock separator</option>
           <option value="footer">Clock band</option>
         </select>
       </label>
@@ -161,6 +183,7 @@
         <div class="editor-actions">
           <button id="editor-apply-image" type="button">APPLY IMAGE</button>
           <button id="editor-original-image" type="button">USE ORIGINAL</button>
+          <button id="editor-delete-image" type="button">DELETE IMAGE</button>
         </div>
         <p class="editor-image-help">ENSŌ: transparent PNG/WebP/SVG, square 1254×1254 recommended. Background: JPG/WebP, iPad 4:3. Maximum 1.5 MB.</p>
       </div>

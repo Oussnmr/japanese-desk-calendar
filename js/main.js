@@ -33,7 +33,7 @@ const elements = Object.fromEntries(
     "year", "weekday-ja", "weekday-en", "date-small", "hero-date", "day-number", "month-number", "prayer-panel", "prayer-list",
     "month-en", "mini-calendar", "clock", "weather-temp", "weather-condition",
     "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
-    "light-controls", "light-power", "light-chill", "light-color", "light-color-panel", "light-color-wheel", "light-color-handle", "light-color-hex", "light-intensity", "light-intensity-value", "light-warmth", "light-warmth-value", "light-status",
+    "light-controls", "light-power", "light-chill", "light-color", "light-color-panel", "light-color-wheel", "light-color-handle", "light-color-hex", "light-saturation", "light-saturation-value", "light-intensity", "light-intensity-value", "light-warmth", "light-warmth-value", "light-status",
     "stopwatch", "stopwatch-toggle", "stopwatch-clear",
   ].map((id) => [id, document.getElementById(id)]),
 );
@@ -50,6 +50,7 @@ let colorPanelOpen = false;
 let colorRequestTimer = null;
 let colorRequestInFlight = false;
 let colorRequestQueued = null;
+let colorControls = { hue: 0, saturation: 100, intensity: 100 };
 
 function showLightState(state, available = true) {
   lightState = state;
@@ -68,9 +69,9 @@ function showLightState(state, available = true) {
   elements["light-color"].setAttribute("aria-pressed", String(on && state?.workMode === "colour"));
   elements["light-color"].disabled = disabled || !state?.colorSupported;
   for (const id of ["light-power", "light-chill"]) elements[id].disabled = disabled;
-  if (Number.isFinite(state?.brightness)) setRangeValue("light-intensity", state.brightness);
+  if (state?.colorHsv) setColorControls(state.colorHsv);
+  if (Number.isFinite(state?.brightness) && state?.workMode !== "colour") setRangeValue("light-intensity", state.brightness);
   if (Number.isFinite(state?.warmth)) setRangeValue("light-warmth", state.warmth);
-  if (state?.color) setColorValue(state.color);
   elements["light-controls"].classList.toggle("is-unavailable", !available);
   elements["light-status"].textContent = available ? "" : "—";
 }
@@ -105,31 +106,27 @@ function rgbToHex({ r, g, b }) {
   return `#${[r, g, b].map((value) => Math.min(255, Math.max(0, Math.round(value))).toString(16).padStart(2, "0")).join("")}`.toUpperCase();
 }
 
-function hueForRgb({ r, g, b }) {
-  const [red, green, blue] = [r, g, b].map((value) => value / 255);
-  const maximum = Math.max(red, green, blue);
-  const minimum = Math.min(red, green, blue);
-  const delta = maximum - minimum;
-  if (!delta) return 0;
-  if (maximum === red) return (60 * ((green - blue) / delta) + 360) % 360;
-  if (maximum === green) return 60 * ((blue - red) / delta + 2);
-  return 60 * ((red - green) / delta + 4);
-}
-
-function rgbForHue(hue) {
-  const chroma = 1;
+function rgbForHue(hue, saturation = 100, intensity = 100) {
+  const chroma = (saturation / 100) * (intensity / 100);
+  const match = (intensity / 100) - chroma;
   const segment = 1 - Math.abs((hue / 60) % 2 - 1);
-  let rgb = [chroma, segment, 0];
-  if (hue >= 60 && hue < 120) rgb = [segment, chroma, 0];
-  else if (hue >= 120 && hue < 180) rgb = [0, chroma, segment];
-  else if (hue >= 180 && hue < 240) rgb = [0, segment, chroma];
-  else if (hue >= 240 && hue < 300) rgb = [segment, 0, chroma];
-  else if (hue >= 300) rgb = [chroma, 0, segment];
-  return Object.fromEntries(["r", "g", "b"].map((key, index) => [key, Math.round(rgb[index] * 255)]));
+  let rgb = [chroma, chroma * segment, 0];
+  if (hue >= 60 && hue < 120) rgb = [chroma * segment, chroma, 0];
+  else if (hue >= 120 && hue < 180) rgb = [0, chroma, chroma * segment];
+  else if (hue >= 180 && hue < 240) rgb = [0, chroma * segment, chroma];
+  else if (hue >= 240 && hue < 300) rgb = [chroma * segment, 0, chroma];
+  else if (hue >= 300) rgb = [chroma, 0, chroma * segment];
+  return Object.fromEntries(["r", "g", "b"].map((key, index) => [key, Math.round((rgb[index] + match) * 255)]));
 }
 
-function setColorValue(color) {
-  const hue = hueForRgb(color);
+function setColorControls(next) {
+  colorControls = {
+    hue: Math.round(Number(next.hue) || 0) % 360,
+    saturation: Math.min(100, Math.max(0, Math.round(Number(next.saturation) || 0))),
+    intensity: Math.min(100, Math.max(0, Math.round(Number(next.intensity) || 0))),
+  };
+  const { hue, saturation, intensity } = colorControls;
+  const color = rgbForHue(hue, saturation, intensity);
   const radius = 49;
   const radians = (hue - 90) * Math.PI / 180;
   elements["light-color-wheel"].setAttribute("aria-valuenow", String(Math.round(hue)));
@@ -137,6 +134,8 @@ function setColorValue(color) {
   elements["light-color-hex"].textContent = rgbToHex(color);
   elements["light-color-handle"].style.transform = `translate(calc(-50% + ${Math.cos(radians) * radius}px), calc(-50% + ${Math.sin(radians) * radius}px))`;
   elements["light-color-handle"].style.background = rgbToHex(color);
+  setRangeValue("light-saturation", saturation);
+  setRangeValue("light-intensity", intensity);
 }
 
 function setColorPanel(open, focus = false) {
@@ -172,9 +171,8 @@ async function flushColorCommand() {
 function applyWheelEvent(event, final = false) {
   const bounds = elements["light-color-wheel"].getBoundingClientRect();
   const angle = (Math.atan2(event.clientY - (bounds.top + bounds.height / 2), event.clientX - (bounds.left + bounds.width / 2)) * 180 / Math.PI + 450) % 360;
-  const color = rgbForHue(angle);
-  setColorValue(color);
-  queueColorCommand("/api/light/color", color, final);
+  setColorControls({ ...colorControls, hue: angle });
+  queueColorCommand("/api/light/color", { hue: Math.round(angle) }, final);
 }
 
 async function refreshLight(preserveOnError = false) {
@@ -393,9 +391,12 @@ elements["light-color"].addEventListener("click", async () => {
   setColorPanel(open, open);
   if (open) await refreshLight(true);
 });
-for (const [id, path, key] of [["light-intensity", "/api/light/brightness", "brightness"], ["light-warmth", "/api/light/warmth", "warmth"]]) {
+for (const [id, path, key] of [["light-saturation", "/api/light/color", "saturation"], ["light-intensity", "/api/light/brightness", "brightness"], ["light-warmth", "/api/light/warmth", "warmth"]]) {
   elements[id].addEventListener("input", () => {
-    setRangeValue(id, Number(elements[id].value));
+    const value = Number(elements[id].value);
+    setRangeValue(id, value);
+    if (id === "light-saturation") setColorControls({ ...colorControls, saturation: value });
+    if (id === "light-intensity" && lightState?.workMode === "colour") setColorControls({ ...colorControls, intensity: value });
     queueColorCommand(path, { [key]: Number(elements[id].value) });
   });
   elements[id].addEventListener("change", () => queueColorCommand(path, { [key]: Number(elements[id].value) }, true));
@@ -421,9 +422,8 @@ elements["light-color-wheel"].addEventListener("keydown", (event) => {
   if (!["ArrowLeft", "ArrowDown", "ArrowRight", "ArrowUp", "Home", "End"].includes(event.key)) return;
   event.preventDefault();
   const hue = event.key === "Home" ? 0 : event.key === "End" ? 359 : (current + (["ArrowRight", "ArrowUp"].includes(event.key) ? step : -step) + 360) % 360;
-  const color = rgbForHue(hue);
-  setColorValue(color);
-  queueColorCommand("/api/light/color", color, true);
+  setColorControls({ ...colorControls, hue });
+  queueColorCommand("/api/light/color", { hue }, true);
 });
 document.addEventListener("pointerdown", (event) => {
   if (colorPanelOpen && !elements["light-controls"].contains(event.target)) setColorPanel(false);

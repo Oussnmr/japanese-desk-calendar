@@ -74,20 +74,41 @@ export function colorScaleForDp(code) {
   return code === "colour_data_v2" ? 1000 : 255;
 }
 
-export function rgbFromColorData(value, scale = 1000) {
+function hsvToRgb({ hue, saturation, intensity }) {
+  const chroma = intensity * saturation;
+  const match = intensity - chroma;
+  const base = hueToRgb(((hue % 360) + 360) % 360);
+  return Object.fromEntries(["r", "g", "b"].map((key, index) => [key, Math.round((base[index] * chroma + match) * 255)]));
+}
+
+export function hsvFromColorData(value, scale = 1000) {
   try {
     const color = typeof value === "string" ? JSON.parse(value) : value;
     const hue = Number(color?.h);
     const saturation = Number(color?.s) / scale;
     const valuePart = Number(color?.v) / scale;
     if (![hue, saturation, valuePart].every(Number.isFinite)) return null;
-    const chroma = valuePart * saturation;
-    const match = valuePart - chroma;
-    const base = hueToRgb(((hue % 360) + 360) % 360);
-    return Object.fromEntries(["r", "g", "b"].map((key, index) => [key, Math.round((base[index] * chroma + match) * 255)]));
+    return { hue: Math.round(hue), saturation: Math.round(saturation * 100), intensity: Math.round(valuePart * 100) };
   } catch {
     return null;
   }
+}
+
+export function rgbFromColorData(value, scale = 1000) {
+  const hsv = hsvFromColorData(value, scale);
+  return hsv ? hsvToRgb({ hue: hsv.hue, saturation: hsv.saturation / 100, intensity: hsv.intensity / 100 }) : null;
+}
+
+export function colorDataFromHsv({ hue, saturation, intensity }, scale = 1000) {
+  const normalizedHue = ((Math.round(Number(hue)) % 360) + 360) % 360;
+  const normalizedSaturation = Math.min(100, Math.max(0, Number(saturation)));
+  const normalizedIntensity = Math.min(100, Math.max(0, Number(intensity)));
+  if (![normalizedHue, normalizedSaturation, normalizedIntensity].every(Number.isFinite)) throw new Error("Expected HSV values");
+  return JSON.stringify({
+    h: normalizedHue,
+    s: Math.max(1, Math.round((normalizedSaturation / 100) * scale)),
+    v: Math.max(1, Math.round((normalizedIntensity / 100) * scale)),
+  });
 }
 
 export function colorDataFromRgb({ r, g, b }, scale = 1000) {
@@ -103,11 +124,7 @@ export function colorDataFromRgb({ r, g, b }, scale = 1000) {
     else if (maximum === green) hue = 60 * ((blue - red) / delta + 2);
     else hue = 60 * ((red - green) / delta + 4);
   }
-  return JSON.stringify({
-    h: Math.round((hue + 360) % 360),
-    s: Math.round((maximum ? delta / maximum : 0) * scale),
-    v: Math.round(maximum * scale),
-  });
+  return colorDataFromHsv({ hue, saturation: (maximum ? delta / maximum : 0) * 100, intensity: maximum * 100 }, scale);
 }
 
 export function presetForState({ on, workMode, brightnessRaw, temperatureRaw }) {
@@ -129,12 +146,14 @@ export function normalizeLightStatus(values) {
     brightnessRaw: Number.isFinite(brightnessRaw) ? brightnessRaw : null,
     temperatureRaw: Number.isFinite(temperatureRaw) ? temperatureRaw : null,
   };
+  const colorHsv = colorDp ? hsvFromColorData(values[colorDp], colorScaleForDp(colorDp)) : null;
   return {
     on: state.on,
     brightness: state.brightnessRaw === null ? null : brightnessPercentFromRaw(state.brightnessRaw),
     warmth: state.temperatureRaw === null ? null : temperaturePercentFromRaw(state.temperatureRaw),
     workMode: state.workMode,
-    color: colorDp ? rgbFromColorData(values[colorDp], colorScaleForDp(colorDp)) : null,
+    color: colorHsv ? hsvToRgb({ hue: colorHsv.hue, saturation: colorHsv.saturation / 100, intensity: colorHsv.intensity / 100 }) : null,
+    colorHsv,
     colorSupported: Boolean(colorDp),
     preset: presetForState(state),
   };

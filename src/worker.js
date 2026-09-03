@@ -1,6 +1,6 @@
 import {
-  LIGHT_DPS, brightnessRawFromPercent, colorDataFromRgb, colorDpForValues, colorScaleForDp,
-  commandsForPreset, normalizeLightStatus, temperatureRawFromPercent,
+  LIGHT_DPS, brightnessRawFromPercent, colorDataFromHsv, colorDpForValues, colorScaleForDp,
+  commandsForPreset, hsvFromColorData, normalizeLightStatus, temperatureRawFromPercent,
 } from "./light-model.js";
 import { parseMawaqitPrayers } from "./prayer-model.js";
 
@@ -160,20 +160,37 @@ async function setLightPreset(env, name) {
   return sendLightCommands(env, commandsForPreset(name), (state) => state.preset === name);
 }
 
-async function setLightColor(env, color) {
+async function setLightColor(env, controls) {
   const result = await deviceRequest(env, `/v1.0/iot-03/devices/${env.TUYA_DEVICE_ID}/status`);
   const values = Object.fromEntries(result.map((item) => [item.code, item.value]));
   const colorDp = colorDpForValues(values);
   if (!colorDp) throw new Error("Light colour control is unsupported");
+  const current = hsvFromColorData(values[colorDp], colorScaleForDp(colorDp)) || { hue: 0, saturation: 100, intensity: 100 };
+  const color = {
+    hue: controls.hue === undefined ? current.hue : controls.hue,
+    saturation: controls.saturation === undefined ? current.saturation : controls.saturation,
+    intensity: controls.intensity === undefined ? current.intensity : controls.intensity,
+  };
   return sendLightCommands(env, [
     { code: LIGHT_DPS.power, value: true },
     { code: LIGHT_DPS.workMode, value: "colour" },
-    { code: colorDp, value: colorDataFromRgb(color, colorScaleForDp(colorDp)) },
+    { code: colorDp, value: colorDataFromHsv(color, colorScaleForDp(colorDp)) },
   ], (state) => state.on && state.workMode === "colour");
 }
 
 async function setLightBrightness(env, brightness) {
   if (!Number.isFinite(Number(brightness))) throw new Error("Invalid brightness");
+  const result = await deviceRequest(env, `/v1.0/iot-03/devices/${env.TUYA_DEVICE_ID}/status`);
+  const values = Object.fromEntries(result.map((item) => [item.code, item.value]));
+  const colorDp = colorDpForValues(values);
+  const current = colorDp ? hsvFromColorData(values[colorDp], colorScaleForDp(colorDp)) : null;
+  if (values[LIGHT_DPS.workMode] === "colour" && colorDp && current) {
+    return sendLightCommands(env, [
+      { code: LIGHT_DPS.power, value: true },
+      { code: LIGHT_DPS.workMode, value: "colour" },
+      { code: colorDp, value: colorDataFromHsv({ ...current, intensity: brightness }, colorScaleForDp(colorDp)) },
+    ], (state) => state.on && state.workMode === "colour" && Math.abs(Number(state.colorHsv?.intensity) - Number(brightness)) <= 2);
+  }
   const raw = brightnessRawFromPercent(brightness);
   return sendLightCommands(env, [
     { code: LIGHT_DPS.power, value: true },

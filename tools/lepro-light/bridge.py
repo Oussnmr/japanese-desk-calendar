@@ -112,22 +112,14 @@ def percent_raw(value):
     return max(0, min(100, round(value)))
 
 
-def color_data(color, scale):
+def color_data_hsv(color, scale):
     try:
-        red, green, blue = (max(0, min(255, round(float(color[key])))) / 255 for key in ("r", "g", "b"))
+        hue = round(float(color["hue"])) % 360
+        saturation = max(0, min(100, float(color["saturation"])))
+        intensity = max(0, min(100, float(color["intensity"])))
     except (KeyError, TypeError, ValueError):
-        raise RuntimeError("Invalid RGB color") from None
-    maximum, minimum = max(red, green, blue), min(red, green, blue)
-    delta = maximum - minimum
-    hue = 0
-    if delta:
-        if maximum == red:
-            hue = 60 * ((green - blue) / delta % 6)
-        elif maximum == green:
-            hue = 60 * ((blue - red) / delta + 2)
-        else:
-            hue = 60 * ((red - green) / delta + 4)
-    return json.dumps({"h": round(hue), "s": round((delta / maximum if maximum else 0) * scale), "v": round(maximum * scale)})
+        raise RuntimeError("Invalid HSV color") from None
+    return json.dumps({"h": hue, "s": max(1, round(saturation / 100 * scale)), "v": max(1, round(intensity / 100 * scale))})
 
 
 def color_code(values):
@@ -138,10 +130,22 @@ def color_scale(code):
     return 1000 if code == "colour_data_v2" else 255
 
 
-def rgb_from_color_data(value, scale):
+def hsv_from_color_data(value, scale):
     try:
         color = json.loads(value) if isinstance(value, str) else value
-        hue, saturation, brightness = float(color["h"]) % 360, float(color["s"]) / scale, float(color["v"]) / scale
+        return {
+            "hue": round(float(color["h"])) % 360,
+            "saturation": round(float(color["s"]) / scale * 100),
+            "intensity": round(float(color["v"]) / scale * 100),
+        }
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def rgb_from_color_data(value, scale):
+    try:
+        color = hsv_from_color_data(value, scale)
+        hue, saturation, brightness = color["hue"], color["saturation"] / 100, color["intensity"] / 100
         chroma = brightness * saturation
         match = brightness - chroma
         segment = chroma * (1 - abs((hue / 60) % 2 - 1))
@@ -162,19 +166,31 @@ def rgb_from_color_data(value, scale):
         return None
 
 
-def apply_color(color):
+def apply_color(controls):
     response = cloud().getstatus(CONFIG["TUYA_DEVICE_ID"])
     values = {item["code"]: item["value"] for item in response.get("result", [])}
     code = color_code(values)
     if not code:
         raise RuntimeError("Color control unsupported")
+    current = hsv_from_color_data(values[code], color_scale(code)) or {"hue": 0, "saturation": 100, "intensity": 100}
+    color = {key: controls.get(key, current[key]) for key in current}
     return send_commands(
-        [{"code": POWER_DP, "value": True}, {"code": MODE_DP, "value": "colour"}, {"code": code, "value": color_data(color, color_scale(code))}],
+        [{"code": POWER_DP, "value": True}, {"code": MODE_DP, "value": "colour"}, {"code": code, "value": color_data_hsv(color, color_scale(code))}],
         lambda state: state["on"] and state["workMode"] == "colour",
     )
 
 
 def apply_brightness(value):
+    response = cloud().getstatus(CONFIG["TUYA_DEVICE_ID"])
+    values = {item["code"]: item["value"] for item in response.get("result", [])}
+    code = color_code(values)
+    current = hsv_from_color_data(values[code], color_scale(code)) if code else None
+    if values.get(MODE_DP) == "colour" and current:
+        current["intensity"] = percent_raw(value)
+        return send_commands(
+            [{"code": POWER_DP, "value": True}, {"code": MODE_DP, "value": "colour"}, {"code": code, "value": color_data_hsv(current, color_scale(code))}],
+            lambda state: state["on"] and state["workMode"] == "colour" and abs(state["colorHsv"]["intensity"] - percent_raw(value)) <= 2,
+        )
     raw = max(25, round(percent_raw(value) / 100 * BRIGHTNESS_MAX))
     return send_commands(
         [{"code": POWER_DP, "value": True}, {"code": BRIGHTNESS_DP, "value": raw}],
@@ -207,6 +223,7 @@ def status():
         elif abs(brightness_raw - BRIGHTNESS_MAX) <= PRESET_TOLERANCE and abs(temperature - BRIGHT_TEMPERATURE) <= PRESET_TOLERANCE:
             preset = "bright"
     brightness = round(brightness_raw / BRIGHTNESS_MAX * 100) if isinstance(brightness_raw, (int, float)) else None
+    color_hsv = hsv_from_color_data(result[selected_color_dp], color_scale(selected_color_dp)) if selected_color_dp else None
     return {
         "on": on,
         "brightness": brightness,
@@ -214,6 +231,7 @@ def status():
         "temperature": temperature,
         "workMode": mode,
         "color": rgb_from_color_data(result[selected_color_dp], color_scale(selected_color_dp)) if selected_color_dp else None,
+        "colorHsv": color_hsv,
         "colorSupported": bool(selected_color_dp),
         "preset": preset,
     }

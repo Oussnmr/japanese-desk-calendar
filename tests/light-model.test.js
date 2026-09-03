@@ -5,11 +5,13 @@ import {
   LIGHT_PRESETS,
   brightnessRawFromPercent,
   colorDataFromRgb,
+  colorDataFromHsv,
   colorDpForValues,
   colorScaleForDp,
   commandsForPreset,
   normalizeLightStatus,
   rgbFromColorData,
+  hsvFromColorData,
   temperatureRawFromPercent,
 } from "../src/light-model.js";
 
@@ -54,6 +56,7 @@ test("color controls use the colour capability reported by this device", () => {
   assert.equal(colorScaleForDp("colour_data_v2"), 1000);
   assert.deepEqual(rgbFromColorData(colorDataFromRgb({ r: 255, g: 0, b: 0 }, 255), 255), { r: 255, g: 0, b: 0 });
   assert.deepEqual(rgbFromColorData(colorDataFromRgb({ r: 0, g: 0, b: 255 })), { r: 0, g: 0, b: 255 });
+  assert.deepEqual(hsvFromColorData(colorDataFromHsv({ hue: 220, saturation: 50, intensity: 75 }, 255), 255), { hue: 220, saturation: 50, intensity: 75 });
 });
 
 test("warmth maps 0 to warm and 100 to cool device temperature", () => {

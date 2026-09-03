@@ -56,11 +56,13 @@
               <div id="light-color-wheel" class="color-wheel" role="slider" tabindex="0" aria-label="RGB color wheel" aria-valuemin="0" aria-valuemax="359" aria-valuenow="7"></div>
               <span class="color-wheel-handle" id="light-color-handle" aria-hidden="true"></span>
             </div>
+            <label class="light-range-label" for="light-saturation"><span>SATURATION</span><output id="light-saturation-value">100%</output></label>
+            <input id="light-saturation" class="light-range" type="range" min="0" max="100" value="100" aria-label="RGB saturation">
             <label class="light-range-label" for="light-intensity"><span>INTENSITY</span><output id="light-intensity-value">100%</output></label>
             <input id="light-intensity" class="light-range" type="range" min="0" max="100" value="100" aria-label="Light intensity">
-            <label class="light-range-label warmth-label" for="light-warmth"><span>WARMTH</span><output id="light-warmth-value">100%</output></label>
-            <div class="warmth-ends" aria-hidden="true"><span>WARM</span><span>COOL</span></div>
-            <input id="light-warmth" class="light-range light-warmth" type="range" min="0" max="100" value="100" aria-label="Light warmth; 0 percent warm, 100 percent cool">
+            <label class="light-range-label warmth-label" for="light-warmth"><span>TONE</span><output id="light-warmth-value">100%</output></label>
+            <div class="warmth-ends" aria-hidden="true"><span>YELLOW</span><span>WHITE</span></div>
+            <input id="light-warmth" class="light-range light-warmth" type="range" min="0" max="100" value="100" aria-label="White tone; 0 percent yellow, 100 percent white">
           </section>
           <span class="light-status" id="light-status" aria-live="polite">—</span>
         </section>

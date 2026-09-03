@@ -70,22 +70,27 @@ export function colorDpForValues(values) {
   return COLOR_DPS.find((code) => Object.hasOwn(values, code)) || null;
 }
 
-export function rgbFromColorData(value) {
+export function colorScaleForDp(code) {
+  return code === "colour_data_v2" ? 1000 : 255;
+}
+
+export function rgbFromColorData(value, scale = 1000) {
   try {
     const color = typeof value === "string" ? JSON.parse(value) : value;
     const hue = Number(color?.h);
-    const saturation = Number(color?.s) / 1000;
-    const valuePart = Number(color?.v) / 1000;
+    const saturation = Number(color?.s) / scale;
+    const valuePart = Number(color?.v) / scale;
     if (![hue, saturation, valuePart].every(Number.isFinite)) return null;
-    const match = valuePart * (1 - saturation);
+    const chroma = valuePart * saturation;
+    const match = valuePart - chroma;
     const base = hueToRgb(((hue % 360) + 360) % 360);
-    return Object.fromEntries(["r", "g", "b"].map((key, index) => [key, Math.round((base[index] * saturation + match) * 255)]));
+    return Object.fromEntries(["r", "g", "b"].map((key, index) => [key, Math.round((base[index] * chroma + match) * 255)]));
   } catch {
     return null;
   }
 }
 
-export function colorDataFromRgb({ r, g, b }) {
+export function colorDataFromRgb({ r, g, b }, scale = 1000) {
   const channels = [r, g, b].map((channel) => Math.min(255, Math.max(0, Math.round(Number(channel)))));
   if (!channels.every(Number.isFinite)) throw new Error("Expected RGB values");
   const [red, green, blue] = channels.map((channel) => channel / 255);
@@ -100,8 +105,8 @@ export function colorDataFromRgb({ r, g, b }) {
   }
   return JSON.stringify({
     h: Math.round((hue + 360) % 360),
-    s: Math.round((maximum ? delta / maximum : 0) * 1000),
-    v: Math.round(maximum * 1000),
+    s: Math.round((maximum ? delta / maximum : 0) * scale),
+    v: Math.round(maximum * scale),
   });
 }
 
@@ -129,7 +134,7 @@ export function normalizeLightStatus(values) {
     brightness: state.brightnessRaw === null ? null : brightnessPercentFromRaw(state.brightnessRaw),
     warmth: state.temperatureRaw === null ? null : temperaturePercentFromRaw(state.temperatureRaw),
     workMode: state.workMode,
-    color: colorDp ? rgbFromColorData(values[colorDp]) : null,
+    color: colorDp ? rgbFromColorData(values[colorDp], colorScaleForDp(colorDp)) : null,
     colorSupported: Boolean(colorDp),
     preset: presetForState(state),
   };

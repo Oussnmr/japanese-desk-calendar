@@ -1,5 +1,5 @@
 import {
-  LIGHT_DPS, brightnessRawFromPercent, colorDataFromRgb, colorDpForValues,
+  LIGHT_DPS, brightnessRawFromPercent, colorDataFromRgb, colorDpForValues, colorScaleForDp,
   commandsForPreset, normalizeLightStatus, temperatureRawFromPercent,
 } from "./light-model.js";
 import { parseMawaqitPrayers } from "./prayer-model.js";
@@ -168,7 +168,7 @@ async function setLightColor(env, color) {
   return sendLightCommands(env, [
     { code: LIGHT_DPS.power, value: true },
     { code: LIGHT_DPS.workMode, value: "colour" },
-    { code: colorDp, value: colorDataFromRgb(color) },
+    { code: colorDp, value: colorDataFromRgb(color, colorScaleForDp(colorDp)) },
   ], (state) => state.on && state.workMode === "colour");
 }
 

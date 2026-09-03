@@ -6,6 +6,7 @@ import {
   brightnessRawFromPercent,
   colorDataFromRgb,
   colorDpForValues,
+  colorScaleForDp,
   commandsForPreset,
   normalizeLightStatus,
   rgbFromColorData,
@@ -49,7 +50,10 @@ test("color controls use the colour capability reported by this device", () => {
   assert.equal(colorDpForValues({ colour_data_v2: "{}" }), "colour_data_v2");
   assert.equal(colorDpForValues({ colour_data: "{}" }), "colour_data");
   assert.equal(colorDpForValues({}), null);
-  assert.deepEqual(rgbFromColorData(colorDataFromRgb({ r: 255, g: 0, b: 0 })), { r: 255, g: 0, b: 0 });
+  assert.equal(colorScaleForDp("colour_data"), 255);
+  assert.equal(colorScaleForDp("colour_data_v2"), 1000);
+  assert.deepEqual(rgbFromColorData(colorDataFromRgb({ r: 255, g: 0, b: 0 }, 255), 255), { r: 255, g: 0, b: 0 });
+  assert.deepEqual(rgbFromColorData(colorDataFromRgb({ r: 0, g: 0, b: 255 })), { r: 0, g: 0, b: 255 });
 });
 
 test("warmth maps 0 to warm and 100 to cool device temperature", () => {

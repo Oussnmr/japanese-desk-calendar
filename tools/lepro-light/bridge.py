@@ -112,7 +112,7 @@ def percent_raw(value):
     return max(0, min(100, round(value)))
 
 
-def color_data(color):
+def color_data(color, scale):
     try:
         red, green, blue = (max(0, min(255, round(float(color[key])))) / 255 for key in ("r", "g", "b"))
     except (KeyError, TypeError, ValueError):
@@ -127,17 +127,21 @@ def color_data(color):
             hue = 60 * ((blue - red) / delta + 2)
         else:
             hue = 60 * ((red - green) / delta + 4)
-    return json.dumps({"h": round(hue), "s": round((delta / maximum if maximum else 0) * 1000), "v": round(maximum * 1000)})
+    return json.dumps({"h": round(hue), "s": round((delta / maximum if maximum else 0) * scale), "v": round(maximum * scale)})
 
 
 def color_code(values):
     return next((code for code in COLOR_DPS if code in values), None)
 
 
-def rgb_from_color_data(value):
+def color_scale(code):
+    return 1000 if code == "colour_data_v2" else 255
+
+
+def rgb_from_color_data(value, scale):
     try:
         color = json.loads(value) if isinstance(value, str) else value
-        hue, saturation, brightness = float(color["h"]) % 360, float(color["s"]) / 1000, float(color["v"]) / 1000
+        hue, saturation, brightness = float(color["h"]) % 360, float(color["s"]) / scale, float(color["v"]) / scale
         chroma = brightness * saturation
         match = brightness - chroma
         segment = chroma * (1 - abs((hue / 60) % 2 - 1))
@@ -165,7 +169,7 @@ def apply_color(color):
     if not code:
         raise RuntimeError("Color control unsupported")
     return send_commands(
-        [{"code": POWER_DP, "value": True}, {"code": MODE_DP, "value": "colour"}, {"code": code, "value": color_data(color)}],
+        [{"code": POWER_DP, "value": True}, {"code": MODE_DP, "value": "colour"}, {"code": code, "value": color_data(color, color_scale(code))}],
         lambda state: state["on"] and state["workMode"] == "colour",
     )
 
@@ -209,7 +213,7 @@ def status():
         "warmth": round(temperature / 255 * 100) if isinstance(temperature, (int, float)) else None,
         "temperature": temperature,
         "workMode": mode,
-        "color": rgb_from_color_data(result[selected_color_dp]) if selected_color_dp else None,
+        "color": rgb_from_color_data(result[selected_color_dp], color_scale(selected_color_dp)) if selected_color_dp else None,
         "colorSupported": bool(selected_color_dp),
         "preset": preset,
     }

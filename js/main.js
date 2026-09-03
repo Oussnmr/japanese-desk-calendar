@@ -86,8 +86,9 @@ async function requestLight(path, body = null) {
     headers: body ? { "content-type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!response.ok) throw new Error("Bridge unavailable");
-  return response.json();
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(payload?.error || "Bridge unavailable");
+  return payload;
 }
 
 function setRangeValue(id, value) {
@@ -155,7 +156,8 @@ async function flushColorCommand() {
   colorRequestInFlight = true;
   try {
     showLightState(await requestLight(command.path, command.body));
-  } catch {
+  } catch (error) {
+    elements["light-controls"].dataset.lightError = error instanceof Error ? error.message : "Bridge unavailable";
     elements["light-status"].textContent = "—";
   } finally {
     colorRequestInFlight = false;

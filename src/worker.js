@@ -259,8 +259,10 @@ export default {
         return json(await setLightWarmth(env, warmth));
       }
       return json({ error: "Not found" }, 404);
-    } catch {
-      return json({ error: "Light service unavailable" }, 503);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Light service unavailable";
+      console.error(JSON.stringify({ event: "light_api_error", path: url.pathname, message }));
+      return json({ error: message }, 503);
     }
   },
 };

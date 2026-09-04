@@ -27,7 +27,10 @@ export function renderMonthCalendar(container, year, month, currentDay) {
   }
 
   for (let day = 1; day <= daysInMonth; day += 1) {
-    const classes = day === currentDay ? "current" : "";
+    const classes = [
+      day === currentDay ? "current" : "",
+      day < currentDay ? "past" : "",
+    ].filter(Boolean).join(" ");
     const current = day === currentDay ? ' aria-current="date"' : "";
     cells.push(`<span class="${classes}"${current}>${day}</span>`);
   }

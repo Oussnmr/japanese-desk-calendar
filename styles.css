@@ -383,6 +383,7 @@ body.editor-is-open .calendar-sheet [data-editor-selected="true"] { outline: 2px
 .mini-grid .weekday em { font-family: sans-serif; font-style: normal; opacity: 0.55; }
 .mini-grid .weekday i { font-family: var(--latin-font); font-style: normal; font-weight: 400; }
 .mini-grid .current-weekday { color: var(--red); }
+.mini-grid .past { color: var(--red); }
 .mini-grid .current { width: 23px; height: 23px; justify-self: center; border-radius: 50%; color: var(--paper); background: var(--red); font-weight: 900; }
 
 .weather { margin-top: clamp(14px, 2.3vh, 24px); border-top: 1px solid var(--ink); padding-top: 10px; }

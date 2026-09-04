@@ -47,6 +47,10 @@
         <section class="prayer-panel" id="prayer-panel" data-editor-target="prayers" aria-label="Prayer times at Masjid AL-ABIDIN" hidden>
           <p><span>礼拝</span> SALAH</p>
           <div class="prayer-list" id="prayer-list"></div>
+          <div class="iqama-countdown" id="iqama-countdown" data-editor-target="iqama-countdown">
+            <span id="next-iqama-label">NEXT IQAMA</span>
+            <time id="next-iqama" datetime="PT0S" aria-live="off">--:--:--</time>
+          </div>
         </section>
         <div class="weekday-ja" id="weekday-ja" data-editor-target="weekday-ja">水曜日</div>
         <div class="weekday-en" id="weekday-en" data-editor-target="weekday-en">WEDNESDAY</div>
@@ -149,6 +153,7 @@
           <option value="today">Today</option>
           <option value="today-date">Date line</option>
           <option value="prayers">Prayer calendar</option>
+          <option value="iqama-countdown">Next Iqama countdown</option>
           <option value="lights">Light controls</option>
           <option value="day">Day number</option>
           <option value="enso">Ensō / image</option>

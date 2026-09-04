@@ -219,7 +219,13 @@ async function prayerTimes() {
   try {
     const response = await fetch(PRAYER_URL, { headers: { accept: "text/html" } });
     if (!response.ok) throw new Error("Mawaqit request failed");
-    const value = parseMawaqitPrayers(await response.text());
+    const html = await response.text();
+    const value = parseMawaqitPrayers(html);
+    try {
+      value.tomorrowPrayers = parseMawaqitPrayers(html, new Date(Date.now() + 24 * 60 * 60 * 1000)).prayers;
+    } catch {
+      value.tomorrowPrayers = [];
+    }
     prayerCache = { value, expiresAt: Date.now() + PRAYER_CACHE_MS };
     return value;
   } catch (error) {

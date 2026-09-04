@@ -34,7 +34,7 @@ const timeFormatter = new Intl.DateTimeFormat("en-GB", {
 
 const elements = Object.fromEntries(
   [
-    "year", "weekday-ja", "weekday-en", "date-small", "hero-date", "day-number", "month-number", "prayer-panel", "prayer-list",
+    "year", "weekday-ja", "weekday-en", "date-small", "hero-date", "day-number", "month-number", "prayer-panel", "prayer-list", "iqama-countdown", "next-iqama", "next-iqama-label",
     "month-en", "mini-calendar", "clock", "weather-temp", "weather-condition",
     "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
     "light-controls", "light-power", "light-chill", "light-color", "light-color-panel", "light-color-wheel", "light-color-handle", "light-color-hex", "light-saturation", "light-saturation-value", "light-intensity", "light-intensity-value", "light-warmth", "light-warmth-value", "light-status",
@@ -44,6 +44,7 @@ const elements = Object.fromEntries(
 );
 
 let currentDateKey = "";
+let prayerSchedules = { prayers: [], tomorrowPrayers: [] };
 let wakeLock = null;
 let stopwatchElapsed = 0;
 let stopwatchStartedAt = null;
@@ -75,6 +76,7 @@ const EDITOR_TARGETS = {
   today: { selector: '[data-editor-target="today"]' },
   "today-date": { selector: '[data-editor-target="today-date"]' },
   prayers: { selector: '[data-editor-target="prayers"]' },
+  "iqama-countdown": { selector: '[data-editor-target="iqama-countdown"]', textId: "next-iqama-label" },
   lights: { selector: '[data-editor-target="lights"]' },
   day: { selector: '[data-editor-target="day"]' },
   enso: { selector: '[data-editor-target="enso"]' },
@@ -582,11 +584,50 @@ function renderClock(value) {
   elements.clock.dateTime = value;
 }
 
+function brusselsTimeParts(date = new Date()) {
+  return Object.fromEntries(timeFormatter.formatToParts(date)
+    .filter(({ type }) => type !== "literal")
+    .map(({ type, value }) => [type, Number(value)]));
+}
+
+function secondsFromTime(value) {
+  const [hours, minutes] = String(value).split(":").map(Number);
+  return Number.isFinite(hours) && Number.isFinite(minutes) ? hours * 3600 + minutes * 60 : null;
+}
+
+function formatCountdown(seconds) {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const remainder = safeSeconds % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+}
+
+function updateNextIqama() {
+  const now = brusselsTimeParts();
+  const elapsed = now.hour * 3600 + now.minute * 60 + now.second;
+  const today = prayerSchedules.prayers || [];
+  const nextToday = today.find(({ iqama }) => (secondsFromTime(iqama) ?? -1) > elapsed);
+  const next = nextToday || prayerSchedules.tomorrowPrayers?.[0];
+  const targetSeconds = next ? secondsFromTime(next.iqama) : null;
+  if (!next || targetSeconds === null) {
+    elements["next-iqama"].textContent = "--:--:--";
+    elements["next-iqama"].dateTime = "PT0S";
+    return;
+  }
+  const remaining = nextToday ? targetSeconds - elapsed : 86400 - elapsed + targetSeconds;
+  const countdown = formatCountdown(remaining);
+  elements["next-iqama"].textContent = `${next.label} · ${countdown}`;
+  elements["next-iqama"].dateTime = `PT${Math.floor(remaining)}S`;
+  elements["next-iqama"].setAttribute("aria-label", `${next.label} iqama in ${countdown}`);
+}
+
 function tick() {
   const now = new Date();
   const parts = brusselsDateParts(now);
   const dateKey = `${parts.year}-${parts.month}-${parts.day}`;
   renderClock(timeFormatter.format(now));
+  updateNextIqama();
   if (dateKey !== currentDateKey) {
     renderDate(parts, currentDateKey !== "");
     currentDateKey = dateKey;
@@ -666,7 +707,7 @@ async function refreshPrayers() {
   try {
     const response = await fetch("/api/prayers", { cache: "no-store" });
     if (!response.ok) throw new Error("Prayer times unavailable");
-    const { prayers } = await response.json();
+    const { prayers, tomorrowPrayers = [] } = await response.json();
     const rows = prayers.map(({ label, time, iqama }) => {
       const [timeHours, timeMinutes] = time.split(":").map(Number);
       const [iqamaHours, iqamaMinutes] = iqama.split(":").map(Number);
@@ -682,6 +723,8 @@ async function refreshPrayers() {
       return row;
     });
     elements["prayer-list"].replaceChildren(...rows);
+    prayerSchedules = { prayers, tomorrowPrayers };
+    updateNextIqama();
     elements["prayer-panel"].hidden = false;
   } catch {
     if (!elements["prayer-list"].children.length) elements["prayer-panel"].hidden = true;

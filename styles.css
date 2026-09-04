@@ -201,7 +201,7 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
 .color-panel-heading b { font-weight: 400; }
 .color-panel-heading output { margin-left: auto; color: var(--muted); font-size: 10px; }
 .color-wheel-wrap { position: relative; width: 150px; height: 150px; margin: 12px auto 14px; }
-.color-wheel { width: 100%; height: 100%; border: 0; border-radius: 50%; background: conic-gradient(#ff3128 0deg, #ff149b 54deg, #b61cff 95deg, #5226ff 135deg, #146cff 175deg, #00e8dc 220deg, #11ef4b 265deg, #dfff00 315deg, #ff3128 360deg); cursor: crosshair; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.color-wheel { width: 100%; height: 100%; border: 0; border-radius: 50%; background: conic-gradient(#ff3128 0deg, #ffff00 60deg, #00ef35 120deg, #00e8dc 180deg, #146cff 240deg, #ff149b 300deg, #ff3128 360deg); cursor: crosshair; touch-action: none; -webkit-tap-highlight-color: transparent; }
 .color-wheel::after { content: ""; position: absolute; inset: 17%; border-radius: 50%; background: var(--paper); pointer-events: none; }
 .color-wheel:focus-visible { outline: 1px solid var(--red); outline-offset: 4px; }
 .color-wheel-handle { position: absolute; top: 50%; left: 50%; z-index: 1; width: 26px; height: 26px; border: 2px solid #fff; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3); pointer-events: none; transform: translate(-50%, -50%); }
@@ -238,6 +238,7 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   -webkit-tap-highlight-color: transparent;
   transition: border-color 160ms ease, color 160ms ease, opacity 160ms ease;
 }
+.editor-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .masthead-rule { position: absolute; right: 0; bottom: 0; left: 0; height: 1px; background: var(--ink); }
 .editor-toggle:hover, .editor-toggle[aria-expanded="true"] { border-color: var(--hairline); color: var(--red); opacity: 1; }
 .editor-toggle:focus-visible, .calendar-editor button:focus-visible, .calendar-editor input:focus-visible, .calendar-editor select:focus-visible { outline: 1px solid var(--red); outline-offset: 3px; }
@@ -261,16 +262,18 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
 }
 .calendar-editor[hidden] { display: none; }
 .editor-heading, .editor-heading > div, .editor-actions { display: flex; align-items: center; }
-.editor-heading { justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--hairline); cursor: grab; touch-action: none; user-select: none; }
+.editor-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--hairline); cursor: grab; touch-action: none; user-select: none; }
 .editor-heading:active { cursor: grabbing; }
-.editor-heading > div { gap: 5px; }
+.editor-heading > div:first-child { min-width: 0; gap: 5px; }
+.editor-heading > div:first-child b { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .editor-heading span { color: var(--red); font-family: var(--japanese-font); font-size: 17px; }
-.editor-heading .editor-drag-cue { margin-left: auto; color: var(--muted); font-family: var(--latin-font); font-size: 10px; letter-spacing: 0.08em; }
-.editor-heading .editor-history { display: flex; gap: 2px; margin-left: 8px; }
-.editor-heading .editor-history button { width: 27px; height: 25px; margin: 0; border: 1px solid transparent; border-radius: 6px; color: var(--ink); font-size: 18px; }
+.editor-heading .editor-drag-cue { display: none; }
+.editor-heading .editor-history { display: flex; flex: none; gap: 3px; margin: 0; }
+.editor-heading .editor-history button { display: grid; width: 28px; height: 27px; margin: 0; padding: 0; border: 1px solid var(--hairline); border-radius: 6px; color: var(--ink); background: transparent; cursor: pointer; place-items: center; }
+.editor-heading .editor-history svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .editor-heading .editor-history button:disabled { color: var(--muted); opacity: 0.28; cursor: default; }
 .editor-heading b { font-weight: 400; }
-.editor-heading button { width: 24px; height: 24px; margin: -5px -5px -5px 0; border: 0; color: var(--muted); background: transparent; font: 20px/1 var(--latin-font); cursor: pointer; }
+.editor-heading > button { width: 24px; height: 24px; margin: 0 -5px 0 0; border: 0; color: var(--muted); background: transparent; font: 20px/1 var(--latin-font); cursor: pointer; }
 .editor-note { margin: 10px 0 13px; color: var(--muted); font-size: 9px; letter-spacing: 0.05em; line-height: 1.45; }
 .editor-field, .editor-sliders label { display: grid; gap: 5px; margin: 0 0 11px; color: var(--muted); }
 .calendar-editor input[type="text"], .calendar-editor select { width: 100%; min-height: 29px; padding: 5px 7px; border: 1px solid var(--hairline); border-radius: 7px; color: var(--ink); background: var(--paper); font: 10px var(--latin-font); letter-spacing: 0.06em; }
@@ -295,6 +298,7 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
 .calendar-sheet.editor-active [data-editor-target][data-editor-color="true"] { color: var(--editor-color); }
 .calendar-sheet.editor-active [data-editor-target][data-editor-color="true"] * { color: inherit !important; }
 body.editor-is-open .calendar-sheet [data-editor-target] { cursor: pointer; }
+body.editor-is-open .calendar-sheet .enso-ring { z-index: 0; pointer-events: auto; touch-action: manipulation; }
 body.editor-is-open .calendar-sheet [data-editor-target]:hover { outline: 1px dashed var(--hairline); outline-offset: 4px; }
 body.editor-is-open .calendar-sheet [data-editor-selected="true"] { outline: 2px solid var(--red); outline-offset: 5px; }
 
@@ -352,7 +356,8 @@ body.editor-is-open .calendar-sheet [data-editor-selected="true"] { outline: 2px
   letter-spacing: 0.15em;
   white-space: nowrap;
 }
-.hero-caption span { color: var(--red); font-family: var(--japanese-font); font-size: 1.7em; font-weight: 400; vertical-align: -0.08em; }
+.hero-caption-mark { color: var(--red); font-family: var(--japanese-font); font-size: 1.7em; font-weight: 400; vertical-align: -0.08em; }
+.hero-caption-text { color: var(--ink); font-family: var(--latin-font); font-size: 1em; font-weight: 400; opacity: 1; vertical-align: baseline; }
 
 .month-panel {
   grid-column: 3;

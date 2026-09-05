@@ -5,7 +5,7 @@
 - Repository: `Oussnmr/japanese-desk-calendar`
 - Production: `https://japanese-desk-calendar.oussama-nemri.workers.dev/`
 - Deployment branch: `main`
-- Current documented revision: `b36e0b8` (`Add next iqama countdown`)
+- Current documented revision: `3dcd566` (`Add AI project handover`) plus shared editor profiles
 - Primary device: iPad Air 4 in landscape, installed as a standalone PWA
 - Product language/style: Japanese editorial desk calendar; minimal, high-contrast, tactile; not a SaaS dashboard.
 
@@ -20,7 +20,8 @@ iPad PWA (static HTML/CSS/JS)
   ├─ Open-Meteo directly: weather
   └─ Same-origin Cloudflare Worker
        ├─ Mawaqit: Salah/Iqama schedule (public read-only endpoint)
-       └─ Tuya Cloud: lamp status and commands (authenticated endpoints)
+       ├─ Tuya Cloud: lamp status and commands (authenticated endpoints)
+       └─ Workers KV: shared editor profiles (authenticated endpoints)
 ```
 
 The Cloudflare Worker also serves the built static files from `dist/` through the `ASSETS` binding. It is not a separate frontend and backend deployment.
@@ -28,7 +29,8 @@ The Cloudflare Worker also serves the built static files from `dist/` through th
 Important boundaries:
 
 - Tuya credentials **must remain Worker secrets**. Never place them in `index.html`, `js/`, a public endpoint, a committed `.env`, browser storage, or a screenshot.
-- The visual editor is intentionally **local to each browser**. It uses `localStorage`; it does not write user layout, profiles, or images to Cloudflare.
+- The visual editor draft, imported **images**, and the theme stay **local to each browser** (`localStorage`).
+- **Editor profiles are shared across devices** through Workers KV, behind the same private token as the lamp. Layout, text and colours sync; images never do. Every `/api/profiles*` endpoint is authenticated — there is still no public write API.
 - `/api/prayers` is public and read-only. Every `/api/light/*` endpoint requires the private setup cookie or `Authorization: Bearer <LIGHT_ACCESS_TOKEN>`.
 - `dist/` is generated and ignored. Change source files, then run the build.
 
@@ -44,6 +46,7 @@ Important boundaries:
 | [`src/worker.js`](src/worker.js) | Cloudflare Worker, Mawaqit proxy/cache, Tuya signing/auth/commands. |
 | [`src/light-model.js`](src/light-model.js) | Device DP names, Tuya range conversion, HSV/RGB normalization, presets. |
 | [`src/prayer-model.js`](src/prayer-model.js) | Parses Mawaqit page data into the five prayer/Iqama records. |
+| [`src/profile-model.js`](src/profile-model.js) | Validates and clamps editor profiles before they reach or leave KV. |
 | [`service-worker.js`](service-worker.js) | PWA network-first/offline cache. Bump its cache name when changing public assets. |
 | [`scripts/build-static.mjs`](scripts/build-static.mjs) | Copies a strict public allow-list into `dist/`. |
 | [`scripts/prepare-cloud-secrets.mjs`](scripts/prepare-cloud-secrets.mjs) | Creates ignored local Cloudflare secret material and private setup URL. |
@@ -141,11 +144,22 @@ Frontend values are normalized before sending: hue `0–359`, saturation `0–10
 | `POST /api/light/brightness` | `{ brightness: 0..100 }` | Updates HSV intensity in colour mode; white brightness otherwise. |
 | `POST /api/light/warmth` | `{ warmth: 0..100 }` | Turns lamp on, switches to white, sets temperature. |
 | `GET /api/prayers` | — | Public read-only Mawaqit schedule and tomorrow schedule. |
+| `GET /api/profiles` | — | All shared editor profiles. Authenticated. |
+| `PUT /api/profiles/<name>` | `{ overrides, text, colors }` | Creates or replaces one profile. Authenticated, sanitized, 64 KB maximum. |
+| `DELETE /api/profiles/<name>` | — | Removes one profile. Authenticated and idempotent. |
 | `GET /setup/<private-token>` | — | Installs `jdc_light` HttpOnly, Secure, SameSite=Strict cookie and redirects home. |
 
 After each Tuya command, the Worker polls status up to six times (400 ms interval) and only returns after expected state is observed. This confirmation is important for the UI and should be preserved.
 
 ### Secrets and setup
+
+Required KV namespace (shared profiles):
+
+```text
+EDITOR_PROFILES     → binding declared in wrangler.jsonc
+```
+
+Create it once with `npx wrangler kv namespace create EDITOR_PROFILES`, paste the id into [`wrangler.jsonc`](wrangler.jsonc) and uncomment the block. Until then `/api/profiles*` answers `503` and the editor silently keeps profiles local — the calendar never breaks because of a missing binding.
 
 Required Cloudflare secrets:
 
@@ -208,7 +222,11 @@ Brussels / Belgium, Clock, Current Time, Clock separator, Clock band
 - Ensō recommendation: transparent square PNG/WebP/SVG, `1254 × 1254`.
 - Full background recommendation: JPG/WebP, iPad 4:3.
 - `DELETE IMAGE` removes the selected imported image from that browser’s local history and clears active references to it.
-- Profiles and the current draft are browser-local. `RESET ORIGINAL` returns to the code defaults.
+- The current draft is browser-local. `RESET ORIGINAL` returns to the code defaults.
+- **Profiles are shared across every authorized device.** `SAVE PROFILE` writes locally and to KV; `DELETE PROFILE` removes the profile selected in `SAVED PROFILES`, locally and in KV, with no confirmation dialog (consistent with `DELETE IMAGE`, and `alert()`/`confirm()` are banned here).
+- On load, `syncEditorProfiles()` fetches KV, merges it over the local map (server wins on a name clash, but local `assets` are preserved so images keep resolving), then pushes any local-only profile up. That is the one-time migration path for profiles created before sync existed.
+- Only `overrides`, `text` and `colors` travel. `assets` is stripped client-side and again in [`src/profile-model.js`](src/profile-model.js).
+- Every sync failure is non-fatal: `profileSyncAvailable` drops to `false`, the editor keeps working on `localStorage`, and the editor note says the profile stayed on this device.
 
 Local storage keys:
 
@@ -233,7 +251,7 @@ jdc-calendar-editor-images
 - The CSS has a compact fallback below 820 px or in portrait; validate landscape first after layout changes.
 - Use pointer events, `touch-action`, visible focus styles, semantic buttons/labels, and `aria-pressed`/`aria-expanded` when extending controls.
 - RGB wheel is keyboard accessible as a slider. Sliders and drag interactions are designed for touch.
-- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v13`.
+- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v14`.
 - A user with an already-open PWA may need one refresh/reopen after deploy to claim the new service worker.
 
 ## 8. Design system
@@ -260,6 +278,8 @@ jdc-calendar-editor-images
 | `84e422b` | Replaced broken font glyphs with SVG pencil/history icons, restored caption, made Ensō touch-selectable, extended rotation, aligned RGB visual direction. |
 | `d21d6e3` | Made days earlier than today red in the mini-calendar. |
 | `b36e0b8` | Added red live countdown to next Iqama and tomorrow-Fajr fallback. |
+| `3dcd566` | Added this handover document. |
+| _current_ | Added KV-backed shared editor profiles and a `DELETE PROFILE` control. |
 
 ## 10. Development, testing, deployment
 
@@ -286,7 +306,8 @@ Normal contribution procedure:
 - The public prayer source is external. UI should fail gracefully: hide the prayer panel only when there is no prior data; preserve stale cached Worker data when possible.
 - Tuya access is intentionally unavailable until the iPad has visited the private setup URL. A disabled light UI is expected when unauthenticated or unavailable.
 - The local Python bridge is diagnostic/fallback only. Do not regress the hosted HTTPS Worker path into a browser-to-LAN request.
-- The editor changes browser-local appearance only. Adding cloud-synced profiles would require explicit storage/auth/product decisions; do not silently add a public write API.
+- Shared profiles were an explicit product decision: KV storage, the existing `LIGHT_ACCESS_TOKEN` gate, images kept local, automatic migration on first load. Layout and images remain browser-local. Do not widen `/api/profiles*` to unauthenticated access.
+- Profiles live under a single KV key (`editor-profiles`) written read-modify-write. That is safe for one owner; two devices saving in the same second could drop one profile. Move to one key per profile if this ever becomes a multi-user product.
 - For new features, choose a clear `data-editor-target` boundary early so the owner can later reposition or restyle it from the editor.
 
 ## 12. Quick orientation for the next agent

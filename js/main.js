@@ -39,7 +39,8 @@ const elements = Object.fromEntries(
     "month-en", "mini-calendar", "clock", "weather-temp", "weather-condition",
     "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
     "light-controls", "light-power", "light-chill", "light-color", "light-color-panel", "light-color-wheel", "light-color-handle", "light-color-hex", "light-saturation", "light-saturation-value", "light-intensity", "light-intensity-value", "light-warmth", "light-warmth-value", "light-status",
-    "plug-controls", "plug-led-power", "plug-lampe-power", "plug-multiprises-power", "plug-projecteur-power",
+    "scene-ns", "settings-toggle", "settings-panel", "settings-light-power", "settings-all-off",
+    "plug-led-power", "plug-lampe-power", "plug-multiprises-power", "plug-projecteur-power",
     "stopwatch", "stopwatch-toggle", "stopwatch-clear",
     "calendar-editor-toggle", "calendar-editor", "calendar-editor-close", "editor-undo", "editor-redo", "editor-note", "editor-target", "editor-text", "editor-x", "editor-x-value", "editor-y", "editor-y-value", "editor-scale", "editor-scale-value", "editor-width", "editor-width-value", "editor-opacity", "editor-opacity-value", "editor-rotation", "editor-rotation-value", "editor-color", "editor-ink-color", "editor-paper-color", "editor-image-kind", "editor-image-file", "editor-image-list", "editor-apply-image", "editor-original-image", "editor-delete-image", "editor-profile-name", "editor-save-profile", "editor-delete-profile", "editor-reset", "editor-profile-list", "enso-ring",
   ].map((id) => [id, document.getElementById(id)]),
@@ -55,7 +56,9 @@ let lightState = null;
 let lightAvailable = false;
 let lightPending = false;
 const PLUG_NAMES = ["led", "lampe", "multiprises", "projecteur"];
+const NS_SCENE_PLUGS = ["led", "lampe", "multiprises"];
 const plugStates = Object.fromEntries(PLUG_NAMES.map((name) => [name, { state: null, available: false, pending: false }]));
+let settingsPanelOpen = false;
 let colorPanelOpen = false;
 let colorRequestTimer = null;
 let colorRequestInFlight = false;
@@ -82,7 +85,6 @@ const EDITOR_TARGETS = {
   prayers: { selector: '[data-editor-target="prayers"]' },
   "iqama-countdown": { selector: '[data-editor-target="iqama-countdown"]', textId: "next-iqama-label" },
   lights: { selector: '[data-editor-target="lights"]' },
-  plugs: { selector: '[data-editor-target="plugs"]' },
   day: { selector: '[data-editor-target="day"]' },
   enso: { selector: '[data-editor-target="enso"]' },
   caption: { selector: '[data-editor-target="caption"]', textId: "hero-caption-text" },
@@ -494,6 +496,11 @@ function showLightState(state, available = true) {
   elements["light-color"].setAttribute("aria-pressed", String(on && state?.workMode === "colour"));
   elements["light-color"].disabled = disabled || !state?.colorSupported;
   for (const id of ["light-power", "light-chill"]) elements[id].disabled = disabled;
+  elements["settings-light-power"].setAttribute("aria-label", on ? "Turn Plafonier off" : "Turn Plafonier on");
+  elements["settings-light-power"].setAttribute("aria-pressed", String(on));
+  elements["settings-light-power"].disabled = disabled;
+  elements["settings-light-power"].classList.toggle("is-unavailable", !available);
+  elements["settings-light-power"].classList.toggle("is-pending", lightPending);
   if (state?.colorHsv) setColorControls(state.colorHsv);
   if (Number.isFinite(state?.brightness) && state?.workMode !== "colour") setRangeValue("light-intensity", state.brightness);
   if (Number.isFinite(state?.warmth)) setRangeValue("light-warmth", state.warmth);
@@ -563,6 +570,14 @@ function setColorControls(next) {
   setRangeValue("light-intensity", intensity);
 }
 
+function setSettingsPanel(open) {
+  settingsPanelOpen = open;
+  elements["settings-panel"].hidden = !open;
+  elements["settings-toggle"].setAttribute("aria-expanded", String(open));
+  elements["settings-toggle"].setAttribute("aria-pressed", String(open));
+  if (!open) setColorPanel(false);
+}
+
 function setColorPanel(open, focus = false) {
   colorPanelOpen = open;
   elements["light-color-panel"].hidden = !open;
@@ -628,6 +643,17 @@ async function commandLight(path) {
   }
 }
 
+function showSceneNsState() {
+  const members = NS_SCENE_PLUGS.map((name) => plugStates[name]);
+  const available = members.every((entry) => entry.available);
+  const on = available && members.every((entry) => entry.state?.on);
+  const button = elements["scene-ns"];
+  button.setAttribute("aria-label", on ? "Turn NS scene off" : "Turn NS scene on");
+  button.setAttribute("aria-pressed", String(on));
+  button.disabled = !available || members.some((entry) => entry.pending);
+  button.classList.toggle("is-unavailable", !available);
+}
+
 function showPlugState(name, state, available = true) {
   const entry = plugStates[name];
   entry.state = state;
@@ -638,6 +664,7 @@ function showPlugState(name, state, available = true) {
   button.setAttribute("aria-pressed", String(on));
   button.disabled = !available || entry.pending;
   button.classList.toggle("is-unavailable", !available);
+  showSceneNsState();
 }
 
 function setPlugPending(name, pending) {
@@ -968,12 +995,22 @@ document.querySelector(".calendar-sheet").addEventListener("click", (event) => {
   selectEditorTarget(target.dataset.editorTarget);
 }, true);
 elements["light-power"].addEventListener("click", () => commandLight("/api/light/toggle"));
+elements["settings-light-power"].addEventListener("click", () => commandLight("/api/light/toggle"));
 for (const name of PLUG_NAMES) {
   elements[`plug-${name}-power`].addEventListener("click", () => commandPlug(name, `/api/plug/${name}/toggle`));
 }
+elements["scene-ns"].addEventListener("click", () => {
+  const target = NS_SCENE_PLUGS.every((name) => plugStates[name].state?.on) ? "off" : "on";
+  for (const name of NS_SCENE_PLUGS) commandPlug(name, `/api/plug/${name}/${target}`);
+});
 elements["light-chill"].addEventListener("click", () => {
   const nextPreset = lightState?.preset === "chill" ? "bright" : "chill";
   commandLight(`/api/light/preset/${nextPreset}`);
+});
+elements["settings-toggle"].addEventListener("click", () => setSettingsPanel(!settingsPanelOpen));
+elements["settings-all-off"].addEventListener("click", () => {
+  commandLight("/api/light/off");
+  for (const name of PLUG_NAMES) commandPlug(name, `/api/plug/${name}/off`);
 });
 elements["light-color"].addEventListener("click", async () => {
   const open = !colorPanelOpen;
@@ -1015,7 +1052,10 @@ elements["light-color-wheel"].addEventListener("keydown", (event) => {
   queueColorCommand("/api/light/color", { hue }, true);
 });
 document.addEventListener("pointerdown", (event) => {
-  if (colorPanelOpen && !elements["light-controls"].contains(event.target)) setColorPanel(false);
+  if (!elements["light-controls"].contains(event.target)) {
+    if (colorPanelOpen) setColorPanel(false);
+    if (settingsPanelOpen) setSettingsPanel(false);
+  }
 });
 document.addEventListener("keydown", (event) => {
   if (editorOpen && (event.ctrlKey || event.metaKey) && ["z", "y"].includes(event.key.toLowerCase())) {
@@ -1026,6 +1066,11 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && colorPanelOpen) {
     setColorPanel(false);
     elements["light-color"].focus({ preventScroll: true });
+    return;
+  }
+  if (event.key === "Escape" && settingsPanelOpen) {
+    setSettingsPanel(false);
+    elements["settings-toggle"].focus({ preventScroll: true });
     return;
   }
   if (event.key === "Escape" && editorOpen) {

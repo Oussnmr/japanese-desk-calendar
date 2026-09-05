@@ -59,28 +59,42 @@
         <p class="date-small" id="date-small" data-editor-target="today-date">2 · SEPTEMBER</p>
         <section class="light-presets" id="light-controls" data-editor-target="lights" aria-label="Light controls" aria-busy="false">
           <button id="light-power" type="button" aria-label="Turn light on" aria-pressed="false" disabled>ON</button>
+          <button id="scene-ns" type="button" aria-label="Turn NS scene on" aria-pressed="false" disabled>NS</button>
           <button id="light-chill" type="button" aria-pressed="false" disabled>CHILL</button>
-          <button id="light-color" type="button" aria-label="Open RGB light controls" aria-pressed="false" aria-expanded="false" aria-controls="light-color-panel" disabled>COLOR</button>
-          <section class="light-color-panel" id="light-color-panel" aria-label="Custom light color" hidden>
-            <div class="color-panel-heading"><span>色</span><b>COLOR</b><output id="light-color-hex">#E52B1A</output></div>
-            <div class="color-wheel-wrap">
-              <div id="light-color-wheel" class="color-wheel" role="slider" tabindex="0" aria-label="RGB color wheel" aria-valuemin="0" aria-valuemax="359" aria-valuenow="7"></div>
-              <span class="color-wheel-handle" id="light-color-handle" aria-hidden="true"></span>
+          <button id="settings-toggle" type="button" aria-label="Open device settings" aria-pressed="false" aria-expanded="false" aria-controls="settings-panel">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3.2"></circle>
+              <path d="M12 3.2v2.4M12 18.4v2.4M20.8 12h-2.4M5.6 12H3.2M17.87 6.13l-1.7 1.7M7.83 16.17l-1.7 1.7M17.87 17.87l-1.7-1.7M7.83 7.83l-1.7-1.7"></path>
+            </svg>
+          </button>
+
+          <section class="settings-panel" id="settings-panel" aria-label="Device settings" hidden>
+            <div class="settings-heading"><span>設定</span><b>SETTINGS</b></div>
+            <div class="settings-devices">
+              <button id="settings-light-power" type="button" aria-label="Turn Plafonier off" aria-pressed="false" disabled>PLAFONIER</button>
+              <button id="plug-led-power" type="button" aria-label="Turn LED plug on" aria-pressed="false" disabled>LED</button>
+              <button id="plug-lampe-power" type="button" aria-label="Turn LAMPE plug on" aria-pressed="false" disabled>LAMPE</button>
+              <button id="plug-multiprises-power" type="button" aria-label="Turn MULTIPRISES plug on" aria-pressed="false" disabled>MULTIPRISES</button>
+              <button id="plug-projecteur-power" type="button" aria-label="Turn PROJECTEUR plug on" aria-pressed="false" disabled>PROJECTEUR</button>
+              <button id="settings-all-off" type="button" aria-label="Turn all devices off">ALL OFF</button>
+              <button id="light-color" type="button" aria-label="Open RGB light controls" aria-pressed="false" aria-expanded="false" aria-controls="light-color-panel" disabled>COLOR</button>
             </div>
-            <label class="light-range-label" for="light-saturation"><span>SATURATION</span><output id="light-saturation-value">100%</output></label>
-            <input id="light-saturation" class="light-range" type="range" min="0" max="100" value="100" aria-label="RGB saturation">
-            <label class="light-range-label" for="light-intensity"><span>INTENSITY</span><output id="light-intensity-value">100%</output></label>
-            <input id="light-intensity" class="light-range" type="range" min="0" max="100" value="100" aria-label="Light intensity">
-            <label class="light-range-label warmth-label" for="light-warmth"><span>TONE</span><output id="light-warmth-value">100%</output></label>
-            <div class="warmth-ends" aria-hidden="true"><span>YELLOW</span><span>WHITE</span></div>
-            <input id="light-warmth" class="light-range light-warmth" type="range" min="0" max="100" value="100" aria-label="White tone; 0 percent yellow, 100 percent white">
+            <section class="light-color-panel" id="light-color-panel" aria-label="Custom light color" hidden>
+              <div class="color-panel-heading"><span>色</span><b>COLOR</b><output id="light-color-hex">#E52B1A</output></div>
+              <div class="color-wheel-wrap">
+                <div id="light-color-wheel" class="color-wheel" role="slider" tabindex="0" aria-label="RGB color wheel" aria-valuemin="0" aria-valuemax="359" aria-valuenow="7"></div>
+                <span class="color-wheel-handle" id="light-color-handle" aria-hidden="true"></span>
+              </div>
+              <label class="light-range-label" for="light-saturation"><span>SATURATION</span><output id="light-saturation-value">100%</output></label>
+              <input id="light-saturation" class="light-range" type="range" min="0" max="100" value="100" aria-label="RGB saturation">
+              <label class="light-range-label" for="light-intensity"><span>INTENSITY</span><output id="light-intensity-value">100%</output></label>
+              <input id="light-intensity" class="light-range" type="range" min="0" max="100" value="100" aria-label="Light intensity">
+              <label class="light-range-label warmth-label" for="light-warmth"><span>TONE</span><output id="light-warmth-value">100%</output></label>
+              <div class="warmth-ends" aria-hidden="true"><span>YELLOW</span><span>WHITE</span></div>
+              <input id="light-warmth" class="light-range light-warmth" type="range" min="0" max="100" value="100" aria-label="White tone; 0 percent yellow, 100 percent white">
+            </section>
           </section>
-          <section class="plug-controls" id="plug-controls" data-editor-target="plugs" aria-label="Plug controls" aria-busy="false">
-            <button id="plug-led-power" type="button" aria-label="Turn LED plug on" aria-pressed="false" disabled>LED</button>
-            <button id="plug-lampe-power" type="button" aria-label="Turn LAMPE plug on" aria-pressed="false" disabled>LAMPE</button>
-            <button id="plug-multiprises-power" type="button" aria-label="Turn MULTIPRISES plug on" aria-pressed="false" disabled>MULTIPRISES</button>
-            <button id="plug-projecteur-power" type="button" aria-label="Turn PROJECTEUR plug on" aria-pressed="false" disabled>PROJECTEUR</button>
-          </section>
+
           <span class="light-status" id="light-status" aria-live="polite">—</span>
         </section>
       </section>
@@ -161,7 +175,6 @@
           <option value="prayers">Prayer calendar</option>
           <option value="iqama-countdown">Next Iqama countdown</option>
           <option value="lights">Light controls</option>
-          <option value="plugs">Plug controls</option>
           <option value="day">Day number</option>
           <option value="enso">Ensō / image</option>
           <option value="caption">Day caption</option>

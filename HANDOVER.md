@@ -85,15 +85,18 @@ Important boundaries:
 - Theme button: toggles light/dark and persists `jdc-theme` locally.
 - Stopwatch: `START` / `PAUSE` and `CLEAR`; the display is hidden while zero. The stopwatch display and controls are separate editor targets.
 
-### Lamp controls
+### Lamp and device controls
 
-The left column has three round controls, all same diameter/axis:
+The left column (`#light-controls`) has four round controls, all same diameter/axis:
 
 | Visible control | Behaviour |
 |---|---|
-| `ON` / `OFF` | Toggles lamp power. |
+| `ON` / `OFF` | Toggles the Plafonier lamp's power. |
+| `NS` | A scene button: turns `led`, `lampe`, and `multiprises` on together, or off together if all three are already on. Does not touch `projecteur` or the lamp. Purely client-side (`js/main.js`): it calls the same `/api/plug/<name>/on|off` endpoints as the individual buttons, in parallel — no dedicated "scene" concept exists in the Worker. |
 | `CHILL` / `BRIGHT` | One control that switches between white presets. The label reflects the active preset when one is active. |
-| `COLOR` | Opens the opaque RGB panel beside the button, aligned from the bottom of the button upward. |
+| gear icon (`#settings-toggle`) | Opens `#settings-panel`, an opaque popup listing every device individually. |
+
+`#settings-panel` holds seven controls in a 3-column grid: one round toggle per device (`PLAFONIER`, `LED`, `LAMPE`, `MULTIPRISES`, `PROJECTEUR` — five total), an `ALL OFF` button that turns all five off at once, and `COLOR`, which opens the RGB panel described below as a popup nested inside the settings popup. `PLAFONIER` there is a second button mirroring `#light-power`'s state (both call `/api/light/toggle`; `showLightState()` updates both in lockstep) — everything else in the panel is the exact same buttons/state objects the plugs already used before this popup existed, just relocated in the DOM. Opening `COLOR` does not add a Worker call; it only reveals the already-existing `.light-color-panel`.
 
 Preset definitions in [`src/light-model.js`](src/light-model.js):
 
@@ -110,11 +113,13 @@ RGB panel behaviour:
 - Tone: 0–100%; yellow/warm → white/cool, switches to white mode.
 - A colour action turns the lamp on and selects `work_mode = colour`; Tone turns it on and selects white mode.
 - Sliders/wheel use a 140 ms debounce during dragging and send the final value on release. No `alert()` is used.
-- Click outside, Escape, or clicking `COLOR` again closes the panel.
+- Click outside `#light-controls`, Escape, or clicking `COLOR` again closes the RGB panel. The same click-outside/Escape handling also closes `#settings-panel`; closing settings also force-closes the nested colour panel so it doesn't silently stay open behind a re-opened settings popup.
 
-### Plug controls
+### Why the settings popup is `position: absolute`
 
-`#plug-controls` (own editor target: **Plug controls**) holds one round button per Tuya smart plug in a compact 2-column grid, since the labels (`LED`, `LAMPE`, `MULTIPRISES`, `PROJECTEUR`) are longer than the lamp's. It is nested inside `#light-controls` and, like `.light-color-panel`, is `position: absolute` beside the ON/CHILL/COLOR column — this is deliberate: `.weekday-panel` is a narrow, height-constrained column, and any plug markup that took part in normal flow (a fourth stacked row, a sibling section, a taller `.light-presets`) pushed and misaligned everything above it. Absolute positioning keeps `.light-presets`'s own box pixel-identical to the pre-plug layout, so adding or removing plugs can never move the header, weekday text, prayer panel, or anything else in that column. Each plug button toggles independently: its own power/pending/unavailable state, its own polling. A plug button stays disabled and dimmed until its Worker secret is set (see §5); nothing else about the calendar is affected by a missing plug secret.
+`.weekday-panel` (the column holding weekday text, prayers, today, and `#light-controls`) is narrow and height-constrained. Both `#settings-panel` and `.light-color-panel` are nested inside `#light-controls` and are `position: absolute`, anchored beside the ON/NS/CHILL/gear column, so neither ever adds height to `.weekday-panel`'s flow. This is deliberate, learned the hard way: an earlier attempt at plug controls used a sibling section that participated in normal flow, and it pushed and misaligned the weekday text, prayer panel, and today/date line above it (see the change history). Any new device control added to this column should follow the same absolute-overlay pattern, not add flow content.
+
+One consequence: because `.settings-devices button` and `.light-presets > button` are dimmed by different mechanisms (see next paragraph), the container-level pending/unavailable classes on `#light-controls` only cascade to its **direct** child buttons (`.light-presets.is-pending > button`, note the `>`). Devices nested inside `#settings-panel` (the five toggles) manage their own `is-pending`/`is-unavailable` classes individually in `js/main.js`, exactly like the plug buttons always have — this avoids the lamp's own pending/unavailable state incorrectly dimming plugs that are independently fine (they share Tuya account secrets but not the `TUYA_DEVICE_ID` secret specifically, so one can be broken while the other works).
 
 ## 5. Tuya integration: exact contract
 
@@ -141,7 +146,7 @@ Frontend values are normalized before sending: hue `0–359`, saturation `0–10
 
 The Tuya account also has plain on/off smart plugs (Led, Multiprises, Projecteur, and one confusingly named "Lampe" — see the naming warning below). Plugs are handled generically in [`src/plug-model.js`](src/plug-model.js): instead of hardcoding a guessed switch DP name, the Worker reads the device's live status and picks its boolean switch code, preferring `switch_1`/`switch` and otherwise matching `switch_N`. This satisfies "never invent a DP name" without a manual verification step per plug.
 
-Each plug is wired through the `PLUGS` map in [`src/worker.js`](src/worker.js), keyed by the URL segment used in `/api/plug/<name>/*` and pointing at the Worker secret holding that device's Tuya id: `led` → `TUYA_DEVICE_ID_PLUG_LED`, `lampe` → `TUYA_DEVICE_ID_PLUG_LAMPE`, `multiprises` → `TUYA_DEVICE_ID_PLUG_MULTIPRISES`, `projecteur` → `TUYA_DEVICE_ID_PLUG_PROJECTEUR`. A plug route answers `503` until both the shared Tuya account secrets and that plug's device-id secret exist — same graceful-degradation pattern as `EDITOR_PROFILES`. All four are wired into the UI (§4's Plug controls section); add another line to `PLUGS` plus its secret to expose a further plug.
+Each plug is wired through the `PLUGS` map in [`src/worker.js`](src/worker.js), keyed by the URL segment used in `/api/plug/<name>/*` and pointing at the Worker secret holding that device's Tuya id: `led` → `TUYA_DEVICE_ID_PLUG_LED`, `lampe` → `TUYA_DEVICE_ID_PLUG_LAMPE`, `multiprises` → `TUYA_DEVICE_ID_PLUG_MULTIPRISES`, `projecteur` → `TUYA_DEVICE_ID_PLUG_PROJECTEUR`. A plug route answers `503` until both the shared Tuya account secrets and that plug's device-id secret exist — same graceful-degradation pattern as `EDITOR_PROFILES`. All four are wired into the UI, individually inside `#settings-panel` (§4) and three of them (`led`/`lampe`/`multiprises`) also combined under the `NS` scene button; add another line to `PLUGS` plus its secret to expose a further plug.
 
 **Device naming warning:** in the Tuya console, the device named "Lampe" is actually a plug (`ANTELA SMERT PLUG`), not the RGB ceiling light the app controls. The lamp wired as `TUYA_DEVICE_ID` is the one named "Plafonier" (`Lampux-RGBceilinglight`). Don't rewire `TUYA_DEVICE_ID` based on the Tuya device name alone.
 
@@ -234,7 +239,7 @@ Current target list:
 ```text
 Header, Daily Calendar, Year, Europe / Brussels, Header separator,
 Weekday, Weekday Japanese, Weekday English, Weekday separator,
-Today, Date line, Prayer calendar, Next Iqama countdown, Light controls, Plug controls,
+Today, Date line, Prayer calendar, Next Iqama countdown, Light controls,
 Day number, Ensō/image, Day caption, Month, Month heading, Month separator,
 Month calendar, Weather, Stopwatch controls, Stopwatch display,
 Brussels / Belgium, Clock, Current Time, Clock separator, Clock band
@@ -277,7 +282,7 @@ jdc-calendar-editor-images
 - The CSS has a compact fallback below 820 px or in portrait; validate landscape first after layout changes.
 - Use pointer events, `touch-action`, visible focus styles, semantic buttons/labels, and `aria-pressed`/`aria-expanded` when extending controls.
 - RGB wheel is keyboard accessible as a slider. Sliders and drag interactions are designed for touch.
-- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v17`.
+- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v18`.
 - A user with an already-open PWA may need one refresh/reopen after deploy to claim the new service worker.
 
 ## 8. Design system
@@ -308,7 +313,8 @@ jdc-calendar-editor-images
 | `fbdc59b`–`7ff6fb9` | Added KV-backed shared editor profiles and a `DELETE PROFILE` control; documented two-assistant handoff. |
 | `c5ebe46` | Added a second Tuya device type: the `LED` smart plug, with generic plug DP detection (`src/plug-model.js`) and `/api/plug/<name>/*`. |
 | `5734dd5` | Added the `LAMPE`, `MULTIPRISES`, and `PROJECTEUR` plugs; moved plug buttons out of `#light-controls` into their own `#plug-controls` grid and editor target — this pushed and misaligned `.weekday-panel`'s other content because it took part in normal flow. |
-| _current_ | Fixed that regression: `#plug-controls` is nested back inside `#light-controls` and made `position: absolute` (like `.light-color-panel`), so it no longer adds height to `.weekday-panel`'s flow. `.light-presets` itself is restored byte-for-byte to its pre-plug CSS. |
+| `e13281c` | Fixed that regression: `#plug-controls` is nested back inside `#light-controls` and made `position: absolute` (like `.light-color-panel`), so it no longer adds height to `.weekday-panel`'s flow. `.light-presets` itself is restored byte-for-byte to its pre-plug CSS. |
+| _current_ | Reworked the home screen to 4 buttons (`ON`, `NS` scene, `CHILL`, gear) plus a 7-control `#settings-panel` popup (5 device toggles, `ALL OFF`, `COLOR` nested-popup). No Worker/endpoint changes — `NS` and `ALL OFF` are pure client-side orchestration over the existing `/api/light/*` and `/api/plug/<name>/*` endpoints. Also fixed a latent bug where plug button dimming classes (`is-pending`/`is-unavailable`, set on the button by `js/main.js`) never matched their CSS selectors (written against a container class instead). |
 
 ## 10. Development, testing, deployment
 

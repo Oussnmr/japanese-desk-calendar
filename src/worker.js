@@ -42,7 +42,12 @@ function configured(env) {
 // Each entry maps a URL segment (/api/plug/<name>/...) to the Worker secret
 // holding that device's Tuya id. Add a line here plus the matching secret to
 // wire up another plug; the route stays disabled (503) until both exist.
-const PLUGS = Object.freeze({ led: "TUYA_DEVICE_ID_PLUG_LED" });
+const PLUGS = Object.freeze({
+  led: "TUYA_DEVICE_ID_PLUG_LED",
+  lampe: "TUYA_DEVICE_ID_PLUG_LAMPE",
+  multiprises: "TUYA_DEVICE_ID_PLUG_MULTIPRISES",
+  projecteur: "TUYA_DEVICE_ID_PLUG_PROJECTEUR",
+});
 
 function plugDeviceId(env, name) {
   const secretName = PLUGS[name];

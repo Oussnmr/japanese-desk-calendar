@@ -38,7 +38,8 @@ const elements = Object.fromEntries(
     "year", "weekday-ja", "weekday-en", "date-small", "hero-date", "day-number", "month-number", "prayer-panel", "prayer-list", "iqama-countdown", "next-iqama", "next-iqama-label",
     "month-en", "mini-calendar", "clock", "weather-temp", "weather-condition",
     "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
-    "light-controls", "light-power", "light-chill", "light-color", "light-color-panel", "light-color-wheel", "light-color-handle", "light-color-hex", "light-saturation", "light-saturation-value", "light-intensity", "light-intensity-value", "light-warmth", "light-warmth-value", "light-status", "plug-led-power",
+    "light-controls", "light-power", "light-chill", "light-color", "light-color-panel", "light-color-wheel", "light-color-handle", "light-color-hex", "light-saturation", "light-saturation-value", "light-intensity", "light-intensity-value", "light-warmth", "light-warmth-value", "light-status",
+    "plug-controls", "plug-led-power", "plug-lampe-power", "plug-multiprises-power", "plug-projecteur-power",
     "stopwatch", "stopwatch-toggle", "stopwatch-clear",
     "calendar-editor-toggle", "calendar-editor", "calendar-editor-close", "editor-undo", "editor-redo", "editor-note", "editor-target", "editor-text", "editor-x", "editor-x-value", "editor-y", "editor-y-value", "editor-scale", "editor-scale-value", "editor-width", "editor-width-value", "editor-opacity", "editor-opacity-value", "editor-rotation", "editor-rotation-value", "editor-color", "editor-ink-color", "editor-paper-color", "editor-image-kind", "editor-image-file", "editor-image-list", "editor-apply-image", "editor-original-image", "editor-delete-image", "editor-profile-name", "editor-save-profile", "editor-delete-profile", "editor-reset", "editor-profile-list", "enso-ring",
   ].map((id) => [id, document.getElementById(id)]),
@@ -53,9 +54,8 @@ let stopwatchTimer = null;
 let lightState = null;
 let lightAvailable = false;
 let lightPending = false;
-let plugLedState = null;
-let plugLedAvailable = false;
-let plugLedPending = false;
+const PLUG_NAMES = ["led", "lampe", "multiprises", "projecteur"];
+const plugStates = Object.fromEntries(PLUG_NAMES.map((name) => [name, { state: null, available: false, pending: false }]));
 let colorPanelOpen = false;
 let colorRequestTimer = null;
 let colorRequestInFlight = false;
@@ -82,6 +82,7 @@ const EDITOR_TARGETS = {
   prayers: { selector: '[data-editor-target="prayers"]' },
   "iqama-countdown": { selector: '[data-editor-target="iqama-countdown"]', textId: "next-iqama-label" },
   lights: { selector: '[data-editor-target="lights"]' },
+  plugs: { selector: '[data-editor-target="plugs"]' },
   day: { selector: '[data-editor-target="day"]' },
   enso: { selector: '[data-editor-target="enso"]' },
   caption: { selector: '[data-editor-target="caption"]', textId: "hero-caption-text" },
@@ -627,49 +628,53 @@ async function commandLight(path) {
   }
 }
 
-function showPlugLedState(state, available = true) {
-  plugLedState = state;
-  plugLedAvailable = available;
+function showPlugState(name, state, available = true) {
+  const entry = plugStates[name];
+  entry.state = state;
+  entry.available = available;
   const on = available && Boolean(state?.on);
-  elements["plug-led-power"].textContent = "LED";
-  elements["plug-led-power"].setAttribute("aria-label", on ? "Turn LED plug off" : "Turn LED plug on");
-  elements["plug-led-power"].setAttribute("aria-pressed", String(on));
-  elements["plug-led-power"].disabled = !available || plugLedPending;
-  elements["plug-led-power"].classList.toggle("is-unavailable", !available);
+  const button = elements[`plug-${name}-power`];
+  button.setAttribute("aria-label", on ? `Turn ${name} plug off` : `Turn ${name} plug on`);
+  button.setAttribute("aria-pressed", String(on));
+  button.disabled = !available || entry.pending;
+  button.classList.toggle("is-unavailable", !available);
 }
 
-function setPlugLedPending(pending) {
-  plugLedPending = pending;
-  elements["plug-led-power"].setAttribute("aria-busy", String(pending));
-  elements["plug-led-power"].classList.toggle("is-pending", pending);
-  showPlugLedState(plugLedState, plugLedAvailable);
+function setPlugPending(name, pending) {
+  const entry = plugStates[name];
+  entry.pending = pending;
+  const button = elements[`plug-${name}-power`];
+  button.setAttribute("aria-busy", String(pending));
+  button.classList.toggle("is-pending", pending);
+  showPlugState(name, entry.state, entry.available);
 }
 
-async function refreshPlugLed(preserveOnError = false) {
-  if (plugLedPending) return false;
+async function refreshPlug(name, preserveOnError = false) {
+  if (plugStates[name].pending) return false;
   try {
-    showPlugLedState(await requestLight("/api/plug/led/status"));
+    showPlugState(name, await requestLight(`/api/plug/${name}/status`));
     return true;
   } catch {
-    if (!preserveOnError) showPlugLedState(null, false);
+    if (!preserveOnError) showPlugState(name, null, false);
     return false;
   }
 }
 
-async function commandPlugLed(path) {
-  if (plugLedPending) return;
-  const previousState = plugLedState;
-  const previousAvailable = plugLedAvailable;
-  setPlugLedPending(true);
+async function commandPlug(name, path) {
+  const entry = plugStates[name];
+  if (entry.pending) return;
+  const previousState = entry.state;
+  const previousAvailable = entry.available;
+  setPlugPending(name, true);
   try {
-    showPlugLedState(await requestLight(path));
+    showPlugState(name, await requestLight(path));
     await new Promise((resolve) => setTimeout(resolve, 500));
-    setPlugLedPending(false);
-    await refreshPlugLed(true);
+    setPlugPending(name, false);
+    await refreshPlug(name, true);
   } catch {
-    showPlugLedState(previousState, previousAvailable);
+    showPlugState(name, previousState, previousAvailable);
   } finally {
-    setPlugLedPending(false);
+    setPlugPending(name, false);
   }
 }
 
@@ -963,7 +968,9 @@ document.querySelector(".calendar-sheet").addEventListener("click", (event) => {
   selectEditorTarget(target.dataset.editorTarget);
 }, true);
 elements["light-power"].addEventListener("click", () => commandLight("/api/light/toggle"));
-elements["plug-led-power"].addEventListener("click", () => commandPlugLed("/api/plug/led/toggle"));
+for (const name of PLUG_NAMES) {
+  elements[`plug-${name}-power`].addEventListener("click", () => commandPlug(name, `/api/plug/${name}/toggle`));
+}
 elements["light-chill"].addEventListener("click", () => {
   const nextPreset = lightState?.preset === "chill" ? "bright" : "chill";
   commandLight(`/api/light/preset/${nextPreset}`);
@@ -1041,7 +1048,9 @@ refreshPrayers();
 setInterval(refreshPrayers, PRAYER_REFRESH_MS);
 refreshLight();
 setInterval(refreshLight, LIGHT_REFRESH_MS);
-refreshPlugLed();
-setInterval(refreshPlugLed, LIGHT_REFRESH_MS);
+for (const name of PLUG_NAMES) {
+  refreshPlug(name);
+  setInterval(() => refreshPlug(name), LIGHT_REFRESH_MS);
+}
 syncEditorProfiles();
 requestWakeLock();

@@ -9,7 +9,12 @@ const localConfig = resolve(root, "tools/cloudflare/.env");
 const setupUrl = resolve(root, "tools/cloudflare/setup-url.txt");
 const required = ["TUYA_API_REGION", "TUYA_API_KEY", "TUYA_API_SECRET", "TUYA_DEVICE_ID"];
 // Extra Tuya devices (smart plugs, ...) are opt-in: only uploaded when present locally.
-const optional = ["TUYA_DEVICE_ID_PLUG_LED"];
+const optional = [
+  "TUYA_DEVICE_ID_PLUG_LED",
+  "TUYA_DEVICE_ID_PLUG_LAMPE",
+  "TUYA_DEVICE_ID_PLUG_MULTIPRISES",
+  "TUYA_DEVICE_ID_PLUG_PROJECTEUR",
+];
 const parse = (text) => Object.fromEntries(
   text.split(/\r?\n/)
     .filter((line) => line.includes("=") && !line.trimStart().startsWith("#"))

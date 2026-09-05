@@ -11,7 +11,7 @@
 
 ## 1. Product in one paragraph
 
-This is a dependency-free single-page calendar for Brussels. It shows the date, time, month, weather, Salah/Iqama times, a countdown to the next Iqama, a stopwatch, a light/dark theme, and secure controls for a Tuya smart lamp plus a Tuya smart plug (`LED`). A built-in visual editor lets the owner select calendar sections directly and adjust their text, placement, scale, width, opacity, colour, rotation, images, and local profiles without editing code.
+This is a dependency-free single-page calendar for Brussels. It shows the date, time, month, weather, Salah/Iqama times, a countdown to the next Iqama, a stopwatch, a light/dark theme, and secure controls for a Tuya smart lamp plus four Tuya smart plugs (`LED`, `LAMPE`, `MULTIPRISES`, `PROJECTEUR`). A built-in visual editor lets the owner select calendar sections directly and adjust their text, placement, scale, width, opacity, colour, rotation, images, and local profiles without editing code.
 
 ## 2. Architecture and runtime boundaries
 
@@ -87,14 +87,13 @@ Important boundaries:
 
 ### Lamp controls
 
-The left column has four round controls, all same diameter/axis:
+The left column has three round controls, all same diameter/axis:
 
 | Visible control | Behaviour |
 |---|---|
 | `ON` / `OFF` | Toggles lamp power. |
 | `CHILL` / `BRIGHT` | One control that switches between white presets. The label reflects the active preset when one is active. |
 | `COLOR` | Opens the opaque RGB panel beside the button, aligned from the bottom of the button upward. |
-| `LED` | Toggles the separate "Led" Tuya smart plug (see §5). Independent power/pending/unavailable state from the lamp; shares the same round-button styling by living in `#light-controls`. |
 
 Preset definitions in [`src/light-model.js`](src/light-model.js):
 
@@ -112,6 +111,10 @@ RGB panel behaviour:
 - A colour action turns the lamp on and selects `work_mode = colour`; Tone turns it on and selects white mode.
 - Sliders/wheel use a 140 ms debounce during dragging and send the final value on release. No `alert()` is used.
 - Click outside, Escape, or clicking `COLOR` again closes the panel.
+
+### Plug controls
+
+A separate `#plug-controls` section (own editor target: **Plug controls**) holds one round button per Tuya smart plug, arranged in a 2-column grid rather than the lamp's single-file column, since the button labels (`LED`, `LAMPE`, `MULTIPRISES`, `PROJECTEUR`) are longer than the lamp's. Each button toggles independently: its own power/pending/unavailable state, its own polling. A plug button stays disabled and dimmed until its Worker secret is set (see §5); nothing else about the calendar is affected by a missing plug secret.
 
 ## 5. Tuya integration: exact contract
 
@@ -138,7 +141,7 @@ Frontend values are normalized before sending: hue `0–359`, saturation `0–10
 
 The Tuya account also has plain on/off smart plugs (Led, Multiprises, Projecteur, and one confusingly named "Lampe" — see the naming warning below). Plugs are handled generically in [`src/plug-model.js`](src/plug-model.js): instead of hardcoding a guessed switch DP name, the Worker reads the device's live status and picks its boolean switch code, preferring `switch_1`/`switch` and otherwise matching `switch_N`. This satisfies "never invent a DP name" without a manual verification step per plug.
 
-Each plug is wired through the `PLUGS` map in [`src/worker.js`](src/worker.js), keyed by the URL segment used in `/api/plug/<name>/*` and pointing at the Worker secret holding that device's Tuya id (e.g. `led` → `TUYA_DEVICE_ID_PLUG_LED`). A plug route answers `503` until both the shared Tuya account secrets and that plug's device-id secret exist — same graceful-degradation pattern as `EDITOR_PROFILES`. Only the `led` plug is wired into the UI today (the `LED` button in §4); add another line to `PLUGS` plus its secret to expose more.
+Each plug is wired through the `PLUGS` map in [`src/worker.js`](src/worker.js), keyed by the URL segment used in `/api/plug/<name>/*` and pointing at the Worker secret holding that device's Tuya id: `led` → `TUYA_DEVICE_ID_PLUG_LED`, `lampe` → `TUYA_DEVICE_ID_PLUG_LAMPE`, `multiprises` → `TUYA_DEVICE_ID_PLUG_MULTIPRISES`, `projecteur` → `TUYA_DEVICE_ID_PLUG_PROJECTEUR`. A plug route answers `503` until both the shared Tuya account secrets and that plug's device-id secret exist — same graceful-degradation pattern as `EDITOR_PROFILES`. All four are wired into the UI (§4's Plug controls section); add another line to `PLUGS` plus its secret to expose a further plug.
 
 **Device naming warning:** in the Tuya console, the device named "Lampe" is actually a plug (`ANTELA SMERT PLUG`), not the RGB ceiling light the app controls. The lamp wired as `TUYA_DEVICE_ID` is the one named "Plafonier" (`Lampux-RGBceilinglight`). Don't rewire `TUYA_DEVICE_ID` based on the Tuya device name alone.
 
@@ -155,7 +158,7 @@ Each plug is wired through the `PLUGS` map in [`src/worker.js`](src/worker.js), 
 | `POST /api/light/warmth` | `{ warmth: 0..100 }` | Turns lamp on, switches to white, sets temperature. |
 | `GET /api/plug/<name>/status` | — | `{ on, supported }` for that plug. `503` if the plug isn't configured. |
 | `POST /api/plug/<name>/toggle` | — | Toggle that plug. |
-| `POST /api/plug/<name>/on` / `off` | — | Explicit plug power. Only `led` is wired today. |
+| `POST /api/plug/<name>/on` / `off` | — | Explicit plug power. `<name>` is `led`, `lampe`, `multiprises`, or `projecteur`. |
 | `GET /api/prayers` | — | Public read-only Mawaqit schedule and tomorrow schedule. |
 | `GET /api/profiles` | — | All shared editor profiles. Authenticated. |
 | `PUT /api/profiles/<name>` | `{ overrides, text, colors }` | Creates or replaces one profile. Authenticated, sanitized, 64 KB maximum. |
@@ -188,6 +191,9 @@ Optional Cloudflare secrets (one per extra plug; a route is `503` while its secr
 
 ```text
 TUYA_DEVICE_ID_PLUG_LED
+TUYA_DEVICE_ID_PLUG_LAMPE
+TUYA_DEVICE_ID_PLUG_MULTIPRISES
+TUYA_DEVICE_ID_PLUG_PROJECTEUR
 ```
 
 For a new environment:
@@ -228,7 +234,7 @@ Current target list:
 ```text
 Header, Daily Calendar, Year, Europe / Brussels, Header separator,
 Weekday, Weekday Japanese, Weekday English, Weekday separator,
-Today, Date line, Prayer calendar, Next Iqama countdown, Light controls,
+Today, Date line, Prayer calendar, Next Iqama countdown, Light controls, Plug controls,
 Day number, Ensō/image, Day caption, Month, Month heading, Month separator,
 Month calendar, Weather, Stopwatch controls, Stopwatch display,
 Brussels / Belgium, Clock, Current Time, Clock separator, Clock band
@@ -270,7 +276,7 @@ jdc-calendar-editor-images
 - The CSS has a compact fallback below 820 px or in portrait; validate landscape first after layout changes.
 - Use pointer events, `touch-action`, visible focus styles, semantic buttons/labels, and `aria-pressed`/`aria-expanded` when extending controls.
 - RGB wheel is keyboard accessible as a slider. Sliders and drag interactions are designed for touch.
-- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v15`.
+- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v16`.
 - A user with an already-open PWA may need one refresh/reopen after deploy to claim the new service worker.
 
 ## 8. Design system
@@ -299,7 +305,8 @@ jdc-calendar-editor-images
 | `b36e0b8` | Added red live countdown to next Iqama and tomorrow-Fajr fallback. |
 | `3dcd566` | Added this handover document. |
 | `fbdc59b`–`7ff6fb9` | Added KV-backed shared editor profiles and a `DELETE PROFILE` control; documented two-assistant handoff. |
-| _current_ | Added a second Tuya device type: the `LED` smart plug, with generic plug DP detection (`src/plug-model.js`) and `/api/plug/<name>/*`. |
+| `c5ebe46` | Added a second Tuya device type: the `LED` smart plug, with generic plug DP detection (`src/plug-model.js`) and `/api/plug/<name>/*`. |
+| _current_ | Added the `LAMPE`, `MULTIPRISES`, and `PROJECTEUR` plugs; moved plug buttons out of `#light-controls` into their own `#plug-controls` grid and editor target. |
 
 ## 10. Development, testing, deployment
 

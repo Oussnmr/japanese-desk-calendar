@@ -61,7 +61,6 @@
           <button id="light-power" type="button" aria-label="Turn light on" aria-pressed="false" disabled>ON</button>
           <button id="light-chill" type="button" aria-pressed="false" disabled>CHILL</button>
           <button id="light-color" type="button" aria-label="Open RGB light controls" aria-pressed="false" aria-expanded="false" aria-controls="light-color-panel" disabled>COLOR</button>
-          <button id="plug-led-power" type="button" aria-label="Turn LED plug on" aria-pressed="false" disabled>LED</button>
           <section class="light-color-panel" id="light-color-panel" aria-label="Custom light color" hidden>
             <div class="color-panel-heading"><span>色</span><b>COLOR</b><output id="light-color-hex">#E52B1A</output></div>
             <div class="color-wheel-wrap">
@@ -77,6 +76,12 @@
             <input id="light-warmth" class="light-range light-warmth" type="range" min="0" max="100" value="100" aria-label="White tone; 0 percent yellow, 100 percent white">
           </section>
           <span class="light-status" id="light-status" aria-live="polite">—</span>
+        </section>
+        <section class="plug-controls" id="plug-controls" data-editor-target="plugs" aria-label="Plug controls" aria-busy="false">
+          <button id="plug-led-power" type="button" aria-label="Turn LED plug on" aria-pressed="false" disabled>LED</button>
+          <button id="plug-lampe-power" type="button" aria-label="Turn LAMPE plug on" aria-pressed="false" disabled>LAMPE</button>
+          <button id="plug-multiprises-power" type="button" aria-label="Turn MULTIPRISES plug on" aria-pressed="false" disabled>MULTIPRISES</button>
+          <button id="plug-projecteur-power" type="button" aria-label="Turn PROJECTEUR plug on" aria-pressed="false" disabled>PROJECTEUR</button>
         </section>
       </section>
 
@@ -156,6 +161,7 @@
           <option value="prayers">Prayer calendar</option>
           <option value="iqama-countdown">Next Iqama countdown</option>
           <option value="lights">Light controls</option>
+          <option value="plugs">Plug controls</option>
           <option value="day">Day number</option>
           <option value="enso">Ensō / image</option>
           <option value="caption">Day caption</option>

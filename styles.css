@@ -195,6 +195,8 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
 .light-presets button:disabled { cursor: default; }
 .light-presets.is-pending button { opacity: 0.45; }
 .light-presets.is-unavailable button { opacity: 0.28; }
+#plug-led-power.is-pending { opacity: 0.45; }
+#plug-led-power.is-unavailable { opacity: 0.28; }
 .light-status { position: absolute; top: 0; left: clamp(50px, 4.5vw, 57px); color: var(--red); font-family: var(--latin-font); font-size: 10px; }
 .light-color-panel { position: absolute; bottom: 0; left: clamp(54px, 5vw, 64px); z-index: 8; width: clamp(224px, 23vw, 258px); padding: 14px 16px 16px; border: 1px solid var(--ink); border-radius: 14px; color: var(--ink); background: var(--paper); font-family: var(--latin-font); box-shadow: none; overflow: clip; }
 .light-color-panel[hidden] { display: none; }

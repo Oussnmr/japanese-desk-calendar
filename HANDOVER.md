@@ -11,7 +11,7 @@
 
 ## 1. Product in one paragraph
 
-This is a dependency-free single-page calendar for Brussels. It shows the date, time, month, weather, Salah/Iqama times, a countdown to the next Iqama, a stopwatch, a light/dark theme, and secure controls for one Tuya smart lamp. A built-in visual editor lets the owner select calendar sections directly and adjust their text, placement, scale, width, opacity, colour, rotation, images, and local profiles without editing code.
+This is a dependency-free single-page calendar for Brussels. It shows the date, time, month, weather, Salah/Iqama times, a countdown to the next Iqama, a stopwatch, a light/dark theme, and secure controls for a Tuya smart lamp plus a Tuya smart plug (`LED`). A built-in visual editor lets the owner select calendar sections directly and adjust their text, placement, scale, width, opacity, colour, rotation, images, and local profiles without editing code.
 
 ## 2. Architecture and runtime boundaries
 
@@ -45,6 +45,7 @@ Important boundaries:
 | [`js/weather.js`](js/weather.js) | Open-Meteo request, label mapping, browser cache fallback. |
 | [`src/worker.js`](src/worker.js) | Cloudflare Worker, Mawaqit proxy/cache, Tuya signing/auth/commands. |
 | [`src/light-model.js`](src/light-model.js) | Device DP names, Tuya range conversion, HSV/RGB normalization, presets. |
+| [`src/plug-model.js`](src/plug-model.js) | Detects a smart plug's boolean switch DP from its live status; normalizes on/off. |
 | [`src/prayer-model.js`](src/prayer-model.js) | Parses Mawaqit page data into the five prayer/Iqama records. |
 | [`src/profile-model.js`](src/profile-model.js) | Validates and clamps editor profiles before they reach or leave KV. |
 | [`service-worker.js`](service-worker.js) | PWA network-first/offline cache. Bump its cache name when changing public assets. |
@@ -86,13 +87,14 @@ Important boundaries:
 
 ### Lamp controls
 
-The left column has three round controls, all same diameter/axis:
+The left column has four round controls, all same diameter/axis:
 
 | Visible control | Behaviour |
 |---|---|
 | `ON` / `OFF` | Toggles lamp power. |
 | `CHILL` / `BRIGHT` | One control that switches between white presets. The label reflects the active preset when one is active. |
 | `COLOR` | Opens the opaque RGB panel beside the button, aligned from the bottom of the button upward. |
+| `LED` | Toggles the separate "Led" Tuya smart plug (see §5). Independent power/pending/unavailable state from the lamp; shares the same round-button styling by living in `#light-controls`. |
 
 Preset definitions in [`src/light-model.js`](src/light-model.js):
 
@@ -132,6 +134,14 @@ Colour scale is detected per device capability:
 
 Frontend values are normalized before sending: hue `0–359`, saturation `0–100`, brightness/intensity `0–100`, and warmth `0–100`. Worker code converts them into the real device DP range.
 
+### Plugs (separate devices from the lamp)
+
+The Tuya account also has plain on/off smart plugs (Led, Multiprises, Projecteur, and one confusingly named "Lampe" — see the naming warning below). Plugs are handled generically in [`src/plug-model.js`](src/plug-model.js): instead of hardcoding a guessed switch DP name, the Worker reads the device's live status and picks its boolean switch code, preferring `switch_1`/`switch` and otherwise matching `switch_N`. This satisfies "never invent a DP name" without a manual verification step per plug.
+
+Each plug is wired through the `PLUGS` map in [`src/worker.js`](src/worker.js), keyed by the URL segment used in `/api/plug/<name>/*` and pointing at the Worker secret holding that device's Tuya id (e.g. `led` → `TUYA_DEVICE_ID_PLUG_LED`). A plug route answers `503` until both the shared Tuya account secrets and that plug's device-id secret exist — same graceful-degradation pattern as `EDITOR_PROFILES`. Only the `led` plug is wired into the UI today (the `LED` button in §4); add another line to `PLUGS` plus its secret to expose more.
+
+**Device naming warning:** in the Tuya console, the device named "Lampe" is actually a plug (`ANTELA SMERT PLUG`), not the RGB ceiling light the app controls. The lamp wired as `TUYA_DEVICE_ID` is the one named "Plafonier" (`Lampux-RGBceilinglight`). Don't rewire `TUYA_DEVICE_ID` based on the Tuya device name alone.
+
 ### Worker endpoints
 
 | Method/path | Body | Notes |
@@ -143,6 +153,9 @@ Frontend values are normalized before sending: hue `0–359`, saturation `0–10
 | `POST /api/light/color` | any subset of `{ hue, saturation, intensity }` | Turns lamp on, switches to colour, preserves omitted HSV fields. |
 | `POST /api/light/brightness` | `{ brightness: 0..100 }` | Updates HSV intensity in colour mode; white brightness otherwise. |
 | `POST /api/light/warmth` | `{ warmth: 0..100 }` | Turns lamp on, switches to white, sets temperature. |
+| `GET /api/plug/<name>/status` | — | `{ on, supported }` for that plug. `503` if the plug isn't configured. |
+| `POST /api/plug/<name>/toggle` | — | Toggle that plug. |
+| `POST /api/plug/<name>/on` / `off` | — | Explicit plug power. Only `led` is wired today. |
 | `GET /api/prayers` | — | Public read-only Mawaqit schedule and tomorrow schedule. |
 | `GET /api/profiles` | — | All shared editor profiles. Authenticated. |
 | `PUT /api/profiles/<name>` | `{ overrides, text, colors }` | Creates or replaces one profile. Authenticated, sanitized, 64 KB maximum. |
@@ -171,9 +184,15 @@ TUYA_DEVICE_ID
 LIGHT_ACCESS_TOKEN
 ```
 
+Optional Cloudflare secrets (one per extra plug; a route is `503` while its secret is unset):
+
+```text
+TUYA_DEVICE_ID_PLUG_LED
+```
+
 For a new environment:
 
-1. Keep the four Tuya values only in `tools/lepro-light/.env` locally.
+1. Keep the four Tuya values (plus any `TUYA_DEVICE_ID_PLUG_*` you want enabled) only in `tools/lepro-light/.env` locally.
 2. Run `node scripts/prepare-cloud-secrets.mjs`.
 3. Upload the generated ignored JSON with the command in [`README.md`](README.md).
 4. Open the generated ignored `tools/cloudflare/setup-url.txt` once on the owner’s iPad.
@@ -251,7 +270,7 @@ jdc-calendar-editor-images
 - The CSS has a compact fallback below 820 px or in portrait; validate landscape first after layout changes.
 - Use pointer events, `touch-action`, visible focus styles, semantic buttons/labels, and `aria-pressed`/`aria-expanded` when extending controls.
 - RGB wheel is keyboard accessible as a slider. Sliders and drag interactions are designed for touch.
-- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v14`.
+- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v15`.
 - A user with an already-open PWA may need one refresh/reopen after deploy to claim the new service worker.
 
 ## 8. Design system
@@ -279,7 +298,8 @@ jdc-calendar-editor-images
 | `d21d6e3` | Made days earlier than today red in the mini-calendar. |
 | `b36e0b8` | Added red live countdown to next Iqama and tomorrow-Fajr fallback. |
 | `3dcd566` | Added this handover document. |
-| _current_ | Added KV-backed shared editor profiles and a `DELETE PROFILE` control. |
+| `fbdc59b`–`7ff6fb9` | Added KV-backed shared editor profiles and a `DELETE PROFILE` control; documented two-assistant handoff. |
+| _current_ | Added a second Tuya device type: the `LED` smart plug, with generic plug DP detection (`src/plug-model.js`) and `/api/plug/<name>/*`. |
 
 ## 10. Development, testing, deployment
 

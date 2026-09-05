@@ -4,6 +4,7 @@ import {
 } from "./light-model.js";
 import { parseMawaqitPrayers } from "./prayer-model.js";
 import { normalizeProfileName, profileTooLarge, sanitizeProfile, sanitizeProfileMap } from "./profile-model.js";
+import { findPlugSwitchCode, normalizePlugStatus } from "./plug-model.js";
 
 const REGION_HOSTS = {
   cn: "openapi.tuyacn.com",
@@ -29,9 +30,23 @@ function json(body, status = 200, headers = {}) {
   });
 }
 
-function configured(env) {
-  return ["TUYA_API_REGION", "TUYA_API_KEY", "TUYA_API_SECRET", "TUYA_DEVICE_ID", "LIGHT_ACCESS_TOKEN"]
+function tuyaAccountConfigured(env) {
+  return ["TUYA_API_REGION", "TUYA_API_KEY", "TUYA_API_SECRET", "LIGHT_ACCESS_TOKEN"]
     .every((name) => Boolean(env[name]));
+}
+
+function configured(env) {
+  return tuyaAccountConfigured(env) && Boolean(env.TUYA_DEVICE_ID);
+}
+
+// Each entry maps a URL segment (/api/plug/<name>/...) to the Worker secret
+// holding that device's Tuya id. Add a line here plus the matching secret to
+// wire up another plug; the route stays disabled (503) until both exist.
+const PLUGS = Object.freeze({ led: "TUYA_DEVICE_ID_PLUG_LED" });
+
+function plugDeviceId(env, name) {
+  const secretName = PLUGS[name];
+  return secretName ? env[secretName] || null : null;
 }
 
 function equalSecrets(left = "", right = "") {
@@ -210,6 +225,35 @@ async function setLightWarmth(env, warmth) {
   ], (state) => state.on && state.workMode === "white" && Math.abs(Number(state.warmth) - Number(warmth)) <= 2);
 }
 
+async function plugValues(env, deviceId) {
+  const result = await deviceRequest(env, `/v1.0/iot-03/devices/${deviceId}/status`);
+  return Object.fromEntries(result.map((item) => [item.code, item.value]));
+}
+
+async function plugStatus(env, deviceId) {
+  return normalizePlugStatus(await plugValues(env, deviceId));
+}
+
+async function setPlug(env, deviceId, on) {
+  const switchCode = findPlugSwitchCode(await plugValues(env, deviceId));
+  if (!switchCode) throw new Error("Plug switch is unsupported");
+  await deviceRequest(env, `/v1.0/iot-03/devices/${deviceId}/commands`, {
+    method: "POST",
+    body: { commands: [{ code: switchCode, value: on }] },
+  });
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const state = await plugStatus(env, deviceId);
+    if (state.on === on) return state;
+  }
+  throw new Error("Plug state confirmation timed out");
+}
+
+async function togglePlug(env, deviceId) {
+  const state = await plugStatus(env, deviceId);
+  return setPlug(env, deviceId, !state.on);
+}
+
 async function requestJson(request) {
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") throw new Error("Invalid request");
@@ -317,6 +361,26 @@ export default {
       } catch (error) {
         const message = error instanceof Error ? error.message : "Profile service unavailable";
         console.error(JSON.stringify({ event: "profile_api_error", path: url.pathname, message }));
+        return json({ error: message }, 503);
+      }
+    }
+
+    const plugMatch = url.pathname.match(/^\/api\/plug\/([a-z0-9-]+)\/(status|toggle|on|off)$/);
+    if (plugMatch) {
+      const [, name, action] = plugMatch;
+      if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { allow: "GET, POST, OPTIONS" } });
+      const deviceId = plugDeviceId(env, name);
+      if (!tuyaAccountConfigured(env) || !deviceId) return json({ error: "Plug is not configured" }, 503);
+      if (!authorized(request, env)) return json({ error: "Unauthorized" }, 401);
+      try {
+        if (action === "status" && request.method === "GET") return json(await plugStatus(env, deviceId));
+        if (action === "toggle" && request.method === "POST") return json(await togglePlug(env, deviceId));
+        if (action === "on" && request.method === "POST") return json(await setPlug(env, deviceId, true));
+        if (action === "off" && request.method === "POST") return json(await setPlug(env, deviceId, false));
+        return json({ error: "Not found" }, 404);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Plug service unavailable";
+        console.error(JSON.stringify({ event: "plug_api_error", path: url.pathname, message }));
         return json({ error: message }, 503);
       }
     }

@@ -38,7 +38,7 @@ const elements = Object.fromEntries(
     "year", "weekday-ja", "weekday-en", "date-small", "hero-date", "day-number", "month-number", "prayer-panel", "prayer-list", "iqama-countdown", "next-iqama", "next-iqama-label",
     "month-en", "mini-calendar", "clock", "weather-temp", "weather-condition",
     "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
-    "light-controls", "light-power", "light-chill", "light-color", "light-color-panel", "light-color-wheel", "light-color-handle", "light-color-hex", "light-saturation", "light-saturation-value", "light-intensity", "light-intensity-value", "light-warmth", "light-warmth-value", "light-status",
+    "light-controls", "light-power", "light-chill", "light-color", "light-color-panel", "light-color-wheel", "light-color-handle", "light-color-hex", "light-saturation", "light-saturation-value", "light-intensity", "light-intensity-value", "light-warmth", "light-warmth-value", "light-status", "plug-led-power",
     "stopwatch", "stopwatch-toggle", "stopwatch-clear",
     "calendar-editor-toggle", "calendar-editor", "calendar-editor-close", "editor-undo", "editor-redo", "editor-note", "editor-target", "editor-text", "editor-x", "editor-x-value", "editor-y", "editor-y-value", "editor-scale", "editor-scale-value", "editor-width", "editor-width-value", "editor-opacity", "editor-opacity-value", "editor-rotation", "editor-rotation-value", "editor-color", "editor-ink-color", "editor-paper-color", "editor-image-kind", "editor-image-file", "editor-image-list", "editor-apply-image", "editor-original-image", "editor-delete-image", "editor-profile-name", "editor-save-profile", "editor-delete-profile", "editor-reset", "editor-profile-list", "enso-ring",
   ].map((id) => [id, document.getElementById(id)]),
@@ -53,6 +53,9 @@ let stopwatchTimer = null;
 let lightState = null;
 let lightAvailable = false;
 let lightPending = false;
+let plugLedState = null;
+let plugLedAvailable = false;
+let plugLedPending = false;
 let colorPanelOpen = false;
 let colorRequestTimer = null;
 let colorRequestInFlight = false;
@@ -506,7 +509,7 @@ function setLightPending(pending) {
 
 async function requestLight(path, body = null) {
   const response = await fetch(path, {
-    method: path === "/api/light/status" ? "GET" : "POST",
+    method: path.endsWith("/status") ? "GET" : "POST",
     cache: "no-store",
     credentials: "same-origin",
     headers: body ? { "content-type": "application/json" } : undefined,
@@ -621,6 +624,52 @@ async function commandLight(path) {
     showLightState(previousState, previousAvailable);
   } finally {
     setLightPending(false);
+  }
+}
+
+function showPlugLedState(state, available = true) {
+  plugLedState = state;
+  plugLedAvailable = available;
+  const on = available && Boolean(state?.on);
+  elements["plug-led-power"].textContent = "LED";
+  elements["plug-led-power"].setAttribute("aria-label", on ? "Turn LED plug off" : "Turn LED plug on");
+  elements["plug-led-power"].setAttribute("aria-pressed", String(on));
+  elements["plug-led-power"].disabled = !available || plugLedPending;
+  elements["plug-led-power"].classList.toggle("is-unavailable", !available);
+}
+
+function setPlugLedPending(pending) {
+  plugLedPending = pending;
+  elements["plug-led-power"].setAttribute("aria-busy", String(pending));
+  elements["plug-led-power"].classList.toggle("is-pending", pending);
+  showPlugLedState(plugLedState, plugLedAvailable);
+}
+
+async function refreshPlugLed(preserveOnError = false) {
+  if (plugLedPending) return false;
+  try {
+    showPlugLedState(await requestLight("/api/plug/led/status"));
+    return true;
+  } catch {
+    if (!preserveOnError) showPlugLedState(null, false);
+    return false;
+  }
+}
+
+async function commandPlugLed(path) {
+  if (plugLedPending) return;
+  const previousState = plugLedState;
+  const previousAvailable = plugLedAvailable;
+  setPlugLedPending(true);
+  try {
+    showPlugLedState(await requestLight(path));
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    setPlugLedPending(false);
+    await refreshPlugLed(true);
+  } catch {
+    showPlugLedState(previousState, previousAvailable);
+  } finally {
+    setPlugLedPending(false);
   }
 }
 
@@ -914,6 +963,7 @@ document.querySelector(".calendar-sheet").addEventListener("click", (event) => {
   selectEditorTarget(target.dataset.editorTarget);
 }, true);
 elements["light-power"].addEventListener("click", () => commandLight("/api/light/toggle"));
+elements["plug-led-power"].addEventListener("click", () => commandPlugLed("/api/plug/led/toggle"));
 elements["light-chill"].addEventListener("click", () => {
   const nextPreset = lightState?.preset === "chill" ? "bright" : "chill";
   commandLight(`/api/light/preset/${nextPreset}`);
@@ -991,5 +1041,7 @@ refreshPrayers();
 setInterval(refreshPrayers, PRAYER_REFRESH_MS);
 refreshLight();
 setInterval(refreshLight, LIGHT_REFRESH_MS);
+refreshPlugLed();
+setInterval(refreshPlugLed, LIGHT_REFRESH_MS);
 syncEditorProfiles();
 requestWakeLock();

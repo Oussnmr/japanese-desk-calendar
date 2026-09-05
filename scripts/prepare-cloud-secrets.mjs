@@ -8,6 +8,8 @@ const target = resolve(root, "tools/cloudflare/.cloudflare-secrets.json");
 const localConfig = resolve(root, "tools/cloudflare/.env");
 const setupUrl = resolve(root, "tools/cloudflare/setup-url.txt");
 const required = ["TUYA_API_REGION", "TUYA_API_KEY", "TUYA_API_SECRET", "TUYA_DEVICE_ID"];
+// Extra Tuya devices (smart plugs, ...) are opt-in: only uploaded when present locally.
+const optional = ["TUYA_DEVICE_ID_PLUG_LED"];
 const parse = (text) => Object.fromEntries(
   text.split(/\r?\n/)
     .filter((line) => line.includes("=") && !line.trimStart().startsWith("#"))
@@ -22,6 +24,7 @@ for (const key of required) {
 
 const secrets = {
   ...Object.fromEntries(required.map((key) => [key, values[key]])),
+  ...Object.fromEntries(optional.filter((key) => values[key]).map((key) => [key, values[key]])),
   LIGHT_ACCESS_TOKEN: existing.LIGHT_ACCESS_TOKEN || randomBytes(32).toString("base64url"),
 };
 

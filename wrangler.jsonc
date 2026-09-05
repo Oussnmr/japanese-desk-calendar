@@ -3,13 +3,11 @@
   "name": "japanese-desk-calendar",
   "main": "./src/worker.js",
   "compatibility_date": "2026-09-02",
-  // Shared editor profiles. Create the namespace once with
-  //   npx wrangler kv namespace create EDITOR_PROFILES
-  // then paste the returned id below and uncomment this block.
-  // Without it the calendar still works: profiles simply stay local to each browser.
-  // "kv_namespaces": [
-  //   { "binding": "EDITOR_PROFILES", "id": "PASTE_NAMESPACE_ID_HERE" }
-  // ],
+  // Shared editor profiles. Without this binding the calendar still works:
+  // /api/profiles answers 503 and profiles stay local to each browser.
+  "kv_namespaces": [
+    { "binding": "EDITOR_PROFILES", "id": "48dd87f86ff845ffbee4935f878d4895" }
+  ],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",

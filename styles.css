@@ -181,6 +181,10 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   height: 2px;
   margin: 26px 0 18px 4px;
   background: var(--red);
+  /* Hidden: in normal flow this red bar lands right where the absolutely
+     positioned prayer panel's iqama countdown ends, reading as a stray
+     line under the prayer time. */
+  display: none;
 }
 
 .today-mark, .date-small { grid-column: 1 / -1; margin: 0 0 12px 4px; }

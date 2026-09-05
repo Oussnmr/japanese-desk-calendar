@@ -1002,6 +1002,7 @@ for (const name of PLUG_NAMES) {
 elements["scene-ns"].addEventListener("click", () => {
   const target = NS_SCENE_PLUGS.every((name) => plugStates[name].state?.on) ? "off" : "on";
   for (const name of NS_SCENE_PLUGS) commandPlug(name, `/api/plug/${name}/${target}`);
+  if (target === "on") commandLight("/api/light/off");
 });
 elements["light-chill"].addEventListener("click", () => {
   const nextPreset = lightState?.preset === "chill" ? "bright" : "chill";

@@ -79,6 +79,7 @@ Important boundaries:
 - It counts down to the next current-day Iqama. After Isha it uses tomorrow's Fajr from `tomorrowPrayers`, not an estimated time.
 - Mawaqit is cached in the Worker for 15 minutes; the browser refreshes it every 30 minutes.
 - The countdown is a standalone editor target named **Next Iqama countdown**. The visible label is editable; the live numeric value is intentionally generated.
+- `.weekday-panel .rule` (the **Weekday separator** editor target, meant to sit between the weekday text and "TODAY") is `display: none` by default: in normal flow it lands right where `.prayer-panel`'s absolutely positioned iqama countdown ends, reading as a stray red bar under the prayer time. Re-enabling it (e.g. via the editor) will reintroduce that overlap unless the two are given non-conflicting positions first.
 
 ### Theme and stopwatch
 
@@ -92,7 +93,7 @@ The left column (`#light-controls`) has four round controls, all same diameter/a
 | Visible control | Behaviour |
 |---|---|
 | `ON` / `OFF` | Toggles the Plafonier lamp's power. |
-| `NS` | A scene button: turns `led`, `lampe`, and `multiprises` on together, or off together if all three are already on. Does not touch `projecteur` or the lamp. Purely client-side (`js/main.js`): it calls the same `/api/plug/<name>/on|off` endpoints as the individual buttons, in parallel — no dedicated "scene" concept exists in the Worker. |
+| `NS` | A scene button: turns `led`, `lampe`, and `multiprises` on together (and also turns the Plafonier lamp off), or turns those three plugs off together if all three are already on (the lamp is left as-is on the off path). Does not touch `projecteur`. Purely client-side (`js/main.js`): it calls the same `/api/plug/<name>/on|off` and `/api/light/off` endpoints as the individual buttons, in parallel — no dedicated "scene" concept exists in the Worker. |
 | `CHILL` / `BRIGHT` | One control that switches between white presets. The label reflects the active preset when one is active. |
 | gear icon (`#settings-toggle`) | Opens `#settings-panel`, an opaque popup listing every device individually. |
 
@@ -282,7 +283,7 @@ jdc-calendar-editor-images
 - The CSS has a compact fallback below 820 px or in portrait; validate landscape first after layout changes.
 - Use pointer events, `touch-action`, visible focus styles, semantic buttons/labels, and `aria-pressed`/`aria-expanded` when extending controls.
 - RGB wheel is keyboard accessible as a slider. Sliders and drag interactions are designed for touch.
-- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v18`.
+- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v19`.
 - A user with an already-open PWA may need one refresh/reopen after deploy to claim the new service worker.
 
 ## 8. Design system
@@ -314,7 +315,8 @@ jdc-calendar-editor-images
 | `c5ebe46` | Added a second Tuya device type: the `LED` smart plug, with generic plug DP detection (`src/plug-model.js`) and `/api/plug/<name>/*`. |
 | `5734dd5` | Added the `LAMPE`, `MULTIPRISES`, and `PROJECTEUR` plugs; moved plug buttons out of `#light-controls` into their own `#plug-controls` grid and editor target — this pushed and misaligned `.weekday-panel`'s other content because it took part in normal flow. |
 | `e13281c` | Fixed that regression: `#plug-controls` is nested back inside `#light-controls` and made `position: absolute` (like `.light-color-panel`), so it no longer adds height to `.weekday-panel`'s flow. `.light-presets` itself is restored byte-for-byte to its pre-plug CSS. |
-| _current_ | Reworked the home screen to 4 buttons (`ON`, `NS` scene, `CHILL`, gear) plus a 7-control `#settings-panel` popup (5 device toggles, `ALL OFF`, `COLOR` nested-popup). No Worker/endpoint changes — `NS` and `ALL OFF` are pure client-side orchestration over the existing `/api/light/*` and `/api/plug/<name>/*` endpoints. Also fixed a latent bug where plug button dimming classes (`is-pending`/`is-unavailable`, set on the button by `js/main.js`) never matched their CSS selectors (written against a container class instead). |
+| `f1b924a` | Reworked the home screen to 4 buttons (`ON`, `NS` scene, `CHILL`, gear) plus a 7-control `#settings-panel` popup (5 device toggles, `ALL OFF`, `COLOR` nested-popup). No Worker/endpoint changes — `NS` and `ALL OFF` are pure client-side orchestration over the existing `/api/light/*` and `/api/plug/<name>/*` endpoints. Also fixed a latent bug where plug button dimming classes (`is-pending`/`is-unavailable`, set on the button by `js/main.js`) never matched their CSS selectors (written against a container class instead). |
+| _current_ | `NS` "on" now also turns the lamp off. Hid `.weekday-panel .rule` (Weekday separator), which was overlapping the prayer countdown and reading as a stray red bar under the prayer time. |
 
 ## 10. Development, testing, deployment
 

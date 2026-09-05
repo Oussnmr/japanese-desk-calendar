@@ -3,6 +3,7 @@ import {
   commandsForPreset, hsvFromColorData, normalizeLightStatus, temperatureRawFromPercent,
 } from "./light-model.js";
 import { parseMawaqitPrayers } from "./prayer-model.js";
+import { normalizeProfileName, profileTooLarge, sanitizeProfile, sanitizeProfileMap } from "./profile-model.js";
 
 const REGION_HOSTS = {
   cn: "openapi.tuyacn.com",
@@ -19,6 +20,7 @@ let prayerCache = null;
 const encoder = new TextEncoder();
 const PRAYER_URL = "https://mawaqit.net/fr/masjid-al-abidin-bruxelles-1000-belgium";
 const PRAYER_CACHE_MS = 15 * 60 * 1000;
+const PROFILES_KEY = "editor-profiles";
 
 function json(body, status = 200, headers = {}) {
   return new Response(JSON.stringify(body), {
@@ -234,6 +236,54 @@ async function prayerTimes() {
   }
 }
 
+function profileStore(env) {
+  return env.EDITOR_PROFILES || null;
+}
+
+async function readProfiles(env) {
+  const store = profileStore(env);
+  if (!store) return {};
+  return sanitizeProfileMap(await store.get(PROFILES_KEY, "json"));
+}
+
+async function writeProfiles(env, profiles) {
+  await profileStore(env).put(PROFILES_KEY, JSON.stringify(profiles));
+}
+
+async function handleProfiles(request, env, url) {
+  if (!env.LIGHT_ACCESS_TOKEN) return json({ error: "Profile sync is not configured" }, 503);
+  if (!authorized(request, env)) return json({ error: "Unauthorized" }, 401);
+  if (!profileStore(env)) return json({ error: "Profile storage is not bound" }, 503);
+
+  if (url.pathname === "/api/profiles" && request.method === "GET") {
+    return json({ profiles: await readProfiles(env) });
+  }
+
+  const name = normalizeProfileName(decodeURIComponent(url.pathname.slice("/api/profiles/".length)));
+  if (!name) return json({ error: "Invalid profile name" }, 400);
+
+  if (request.method === "PUT") {
+    const profile = sanitizeProfile(await requestJson(request));
+    if (profileTooLarge(profile)) return json({ error: "Profile too large" }, 413);
+    const profiles = await readProfiles(env);
+    profiles[name] = profile;
+    await writeProfiles(env, sanitizeProfileMap(profiles));
+    return json({ name, profile });
+  }
+
+  if (request.method === "DELETE") {
+    const profiles = await readProfiles(env);
+    const existed = name in profiles;
+    if (existed) {
+      delete profiles[name];
+      await writeProfiles(env, profiles);
+    }
+    return json({ name, deleted: existed });
+  }
+
+  return json({ error: "Not found" }, 404);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -257,6 +307,17 @@ export default {
         return json(await prayerTimes(), 200, { "cache-control": "public, max-age=300" });
       } catch {
         return json({ error: "Prayer times unavailable" }, 503);
+      }
+    }
+
+    if (url.pathname === "/api/profiles" || url.pathname.startsWith("/api/profiles/")) {
+      if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { allow: "GET, PUT, DELETE, OPTIONS" } });
+      try {
+        return await handleProfiles(request, env, url);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Profile service unavailable";
+        console.error(JSON.stringify({ event: "profile_api_error", path: url.pathname, message }));
+        return json({ error: message }, 503);
       }
     }
 

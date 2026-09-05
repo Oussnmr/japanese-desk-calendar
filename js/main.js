@@ -10,6 +10,7 @@ const EDITOR_DRAFT_KEY = "jdc-calendar-editor-draft";
 const EDITOR_PROFILES_KEY = "jdc-calendar-editor-profiles";
 const EDITOR_IMAGES_KEY = "jdc-calendar-editor-images";
 const MAX_EDITOR_IMAGE_BYTES = 1.5 * 1024 * 1024;
+const PROFILE_SYNC_URL = "/api/profiles";
 const WEEKDAYS_JA = ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"];
 const WEEKDAYS_EN = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const MONTHS_EN = [
@@ -39,7 +40,7 @@ const elements = Object.fromEntries(
     "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
     "light-controls", "light-power", "light-chill", "light-color", "light-color-panel", "light-color-wheel", "light-color-handle", "light-color-hex", "light-saturation", "light-saturation-value", "light-intensity", "light-intensity-value", "light-warmth", "light-warmth-value", "light-status",
     "stopwatch", "stopwatch-toggle", "stopwatch-clear",
-    "calendar-editor-toggle", "calendar-editor", "calendar-editor-close", "editor-undo", "editor-redo", "editor-note", "editor-target", "editor-text", "editor-x", "editor-x-value", "editor-y", "editor-y-value", "editor-scale", "editor-scale-value", "editor-width", "editor-width-value", "editor-opacity", "editor-opacity-value", "editor-rotation", "editor-rotation-value", "editor-color", "editor-ink-color", "editor-paper-color", "editor-image-kind", "editor-image-file", "editor-image-list", "editor-apply-image", "editor-original-image", "editor-delete-image", "editor-profile-name", "editor-save-profile", "editor-reset", "editor-profile-list", "enso-ring",
+    "calendar-editor-toggle", "calendar-editor", "calendar-editor-close", "editor-undo", "editor-redo", "editor-note", "editor-target", "editor-text", "editor-x", "editor-x-value", "editor-y", "editor-y-value", "editor-scale", "editor-scale-value", "editor-width", "editor-width-value", "editor-opacity", "editor-opacity-value", "editor-rotation", "editor-rotation-value", "editor-color", "editor-ink-color", "editor-paper-color", "editor-image-kind", "editor-image-file", "editor-image-list", "editor-apply-image", "editor-original-image", "editor-delete-image", "editor-profile-name", "editor-save-profile", "editor-delete-profile", "editor-reset", "editor-profile-list", "enso-ring",
   ].map((id) => [id, document.getElementById(id)]),
 );
 
@@ -142,7 +143,7 @@ function travelEditorHistory(direction) {
 }
 
 function updateEditorProfileList() {
-  const profiles = storedJson(EDITOR_PROFILES_KEY, {});
+  const profiles = storedProfiles();
   const current = elements["editor-profile-list"].value;
   elements["editor-profile-list"].replaceChildren(new Option("CHOOSE A PROFILE", ""));
   for (const name of Object.keys(profiles).sort((left, right) => left.localeCompare(right))) {
@@ -274,22 +275,115 @@ function resetEditor() {
   updateEditorFields();
 }
 
-function saveEditorProfile() {
-  const name = elements["editor-profile-name"].value.trim().toUpperCase();
+let profileSyncAvailable = false;
+
+function storedProfiles() {
+  return storedJson(EDITOR_PROFILES_KEY, {});
+}
+
+function writeStoredProfiles(profiles) {
+  try { localStorage.setItem(EDITOR_PROFILES_KEY, JSON.stringify(profiles)); } catch {}
+}
+
+function editorProfileName(value) {
+  return value.trim().toUpperCase().replace(/[^A-Z0-9 ._-]/g, "").slice(0, 28).trim();
+}
+
+async function profileRequest(path, options = {}) {
+  const response = await fetch(path, { cache: "no-store", credentials: "same-origin", ...options });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(payload?.error || "Profile sync unavailable");
+  return payload;
+}
+
+// Images live only in this browser, so `assets` never leaves the device.
+function shareableProfile(profile) {
+  return {
+    overrides: profile?.overrides && typeof profile.overrides === "object" ? profile.overrides : {},
+    text: profile?.text && typeof profile.text === "object" ? profile.text : {},
+    colors: profile?.colors && typeof profile.colors === "object" ? profile.colors : {},
+  };
+}
+
+function pushProfile(name, profile) {
+  return profileRequest(`${PROFILE_SYNC_URL}/${encodeURIComponent(name)}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(shareableProfile(profile)),
+  });
+}
+
+async function syncEditorProfiles() {
+  let remote;
+  try {
+    remote = (await profileRequest(PROFILE_SYNC_URL)).profiles || {};
+  } catch {
+    profileSyncAvailable = false;
+    return;
+  }
+  profileSyncAvailable = true;
+  const local = storedProfiles();
+  const merged = { ...local };
+  for (const [name, profile] of Object.entries(remote)) {
+    merged[name] = { ...profile, assets: local[name]?.assets ?? {} };
+  }
+  writeStoredProfiles(merged);
+  updateEditorProfileList();
+  for (const [name, profile] of Object.entries(local)) {
+    if (remote[name]) continue;
+    try { await pushProfile(name, profile); } catch { /* keep the local copy */ }
+  }
+}
+
+async function saveEditorProfile() {
+  const name = editorProfileName(elements["editor-profile-name"].value);
   if (!name) {
     elements["editor-profile-name"].focus({ preventScroll: true });
     return;
   }
-  const profiles = storedJson(EDITOR_PROFILES_KEY, {});
+  const profiles = storedProfiles();
   profiles[name] = structuredClone(editorState);
-  try { localStorage.setItem(EDITOR_PROFILES_KEY, JSON.stringify(profiles)); } catch {}
+  writeStoredProfiles(profiles);
   elements["editor-profile-name"].value = "";
   updateEditorProfileList();
   elements["editor-profile-list"].value = name;
+  if (!profileSyncAvailable) {
+    setEditorMessage(`${name} saved on this device.`);
+    return;
+  }
+  try {
+    await pushProfile(name, profiles[name]);
+    setEditorMessage(`${name} saved on all your devices.`);
+  } catch {
+    setEditorMessage(`${name} saved here. Sync unavailable, it stays on this device for now.`);
+  }
+}
+
+async function deleteEditorProfile() {
+  const name = elements["editor-profile-list"].value;
+  if (!name) {
+    setEditorMessage("Choose a saved profile before deleting it.");
+    return;
+  }
+  const profiles = storedProfiles();
+  delete profiles[name];
+  writeStoredProfiles(profiles);
+  elements["editor-profile-list"].value = "";
+  updateEditorProfileList();
+  if (!profileSyncAvailable) {
+    setEditorMessage(`${name} deleted on this device.`);
+    return;
+  }
+  try {
+    await profileRequest(`${PROFILE_SYNC_URL}/${encodeURIComponent(name)}`, { method: "DELETE" });
+    setEditorMessage(`${name} deleted on all your devices.`);
+  } catch {
+    setEditorMessage(`${name} deleted here, but the sync failed. It may return on another device.`);
+  }
 }
 
 function loadEditorProfile(name) {
-  const profile = storedJson(EDITOR_PROFILES_KEY, {})[name];
+  const profile = storedProfiles()[name];
   if (!profile) return;
   editorState = {
     overrides: profile.overrides && typeof profile.overrides === "object" ? profile.overrides : {},
@@ -797,6 +891,7 @@ elements["editor-text"].addEventListener("input", () => {
   saveEditorDraft();
 });
 elements["editor-save-profile"].addEventListener("click", saveEditorProfile);
+elements["editor-delete-profile"].addEventListener("click", deleteEditorProfile);
 elements["editor-reset"].addEventListener("click", resetEditor);
 elements["editor-undo"].addEventListener("click", () => travelEditorHistory(-1));
 elements["editor-redo"].addEventListener("click", () => travelEditorHistory(1));
@@ -896,4 +991,5 @@ refreshPrayers();
 setInterval(refreshPrayers, PRAYER_REFRESH_MS);
 refreshLight();
 setInterval(refreshLight, LIGHT_REFRESH_MS);
+syncEditorProfiles();
 requestWakeLock();

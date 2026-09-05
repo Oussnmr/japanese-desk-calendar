@@ -114,7 +114,7 @@ RGB panel behaviour:
 
 ### Plug controls
 
-A separate `#plug-controls` section (own editor target: **Plug controls**) holds one round button per Tuya smart plug, arranged in a 2-column grid rather than the lamp's single-file column, since the button labels (`LED`, `LAMPE`, `MULTIPRISES`, `PROJECTEUR`) are longer than the lamp's. Each button toggles independently: its own power/pending/unavailable state, its own polling. A plug button stays disabled and dimmed until its Worker secret is set (see §5); nothing else about the calendar is affected by a missing plug secret.
+`#plug-controls` (own editor target: **Plug controls**) holds one round button per Tuya smart plug in a compact 2-column grid, since the labels (`LED`, `LAMPE`, `MULTIPRISES`, `PROJECTEUR`) are longer than the lamp's. It is nested inside `#light-controls` and, like `.light-color-panel`, is `position: absolute` beside the ON/CHILL/COLOR column — this is deliberate: `.weekday-panel` is a narrow, height-constrained column, and any plug markup that took part in normal flow (a fourth stacked row, a sibling section, a taller `.light-presets`) pushed and misaligned everything above it. Absolute positioning keeps `.light-presets`'s own box pixel-identical to the pre-plug layout, so adding or removing plugs can never move the header, weekday text, prayer panel, or anything else in that column. Each plug button toggles independently: its own power/pending/unavailable state, its own polling. A plug button stays disabled and dimmed until its Worker secret is set (see §5); nothing else about the calendar is affected by a missing plug secret.
 
 ## 5. Tuya integration: exact contract
 
@@ -269,6 +269,7 @@ jdc-calendar-editor-images
 - Preserve `--editor-base-transform` on elements that already have a native transform (day number, Ensō, stopwatch, vertical weekday text). The generic editor transform composes from this custom property.
 - Ensō has `pointer-events: none` normally, but is enabled only with `body.editor-is-open` so the red brush can be selected directly without blocking ordinary use.
 - The day caption has two spans: `.hero-caption-mark` is red Japanese; `.hero-caption-text` is ink Latin. Do not target all caption spans with the Japanese font or the English caption can disappear.
+- `.weekday-panel` (the left column holding weekday text, prayers, today, and the lamp/plug buttons) is narrow and height-constrained; any new markup that takes part in normal flow there (a new stacked row, a new sibling section) pushes and misaligns everything else in that column. New controls in that column should be `position: absolute` inside an existing `position: relative` parent (see `.light-color-panel` and `.plug-controls`), not new flow content — that's what broke the layout the first time plugs were added.
 
 ## 7. iPad, accessibility, and PWA requirements
 
@@ -276,7 +277,7 @@ jdc-calendar-editor-images
 - The CSS has a compact fallback below 820 px or in portrait; validate landscape first after layout changes.
 - Use pointer events, `touch-action`, visible focus styles, semantic buttons/labels, and `aria-pressed`/`aria-expanded` when extending controls.
 - RGB wheel is keyboard accessible as a slider. Sliders and drag interactions are designed for touch.
-- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v16`.
+- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v17`.
 - A user with an already-open PWA may need one refresh/reopen after deploy to claim the new service worker.
 
 ## 8. Design system
@@ -306,7 +307,8 @@ jdc-calendar-editor-images
 | `3dcd566` | Added this handover document. |
 | `fbdc59b`–`7ff6fb9` | Added KV-backed shared editor profiles and a `DELETE PROFILE` control; documented two-assistant handoff. |
 | `c5ebe46` | Added a second Tuya device type: the `LED` smart plug, with generic plug DP detection (`src/plug-model.js`) and `/api/plug/<name>/*`. |
-| _current_ | Added the `LAMPE`, `MULTIPRISES`, and `PROJECTEUR` plugs; moved plug buttons out of `#light-controls` into their own `#plug-controls` grid and editor target. |
+| `5734dd5` | Added the `LAMPE`, `MULTIPRISES`, and `PROJECTEUR` plugs; moved plug buttons out of `#light-controls` into their own `#plug-controls` grid and editor target — this pushed and misaligned `.weekday-panel`'s other content because it took part in normal flow. |
+| _current_ | Fixed that regression: `#plug-controls` is nested back inside `#light-controls` and made `position: absolute` (like `.light-color-panel`), so it no longer adds height to `.weekday-panel`'s flow. `.light-presets` itself is restored byte-for-byte to its pre-plug CSS. |
 
 ## 10. Development, testing, deployment
 

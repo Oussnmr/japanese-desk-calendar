@@ -188,17 +188,23 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
 .today-mark b { color: var(--red); font-family: var(--japanese-font); font-size: 26px; font-weight: 400; }
 .today-mark span { font-family: var(--latin-font); font-size: 13px; font-weight: 400; letter-spacing: 0.08em; }
 .date-small { font-family: var(--latin-font); font-size: 12px; font-weight: 400; letter-spacing: 0.08em; }
-.light-presets, .plug-controls { position: relative; grid-column: 1 / -1; gap: clamp(6px, 0.9vh, 9px); margin: clamp(2px, 0.6vh, 6px) 0 0 4px; }
-.light-presets { display: flex; flex-direction: column; align-items: flex-start; }
-.plug-controls { display: grid; grid-template-columns: repeat(2, 1fr); }
-.light-presets button, .plug-controls button { appearance: none; display: grid; place-items: center; width: clamp(42px, 3.8vw, 48px); height: clamp(42px, 3.8vw, 48px); margin: 0; padding: 2px; border: 1px solid var(--hairline); border-radius: 50%; color: var(--ink); background: transparent; font-family: var(--latin-font); font-size: clamp(8px, 0.8vw, 10px); line-height: 1; letter-spacing: 0.03em; text-align: center; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: color 140ms ease, border-color 140ms ease, background-color 140ms ease, opacity 140ms ease; }
-.plug-controls button { font-size: clamp(6px, 0.62vw, 7.5px); line-height: 1.05; white-space: normal; word-break: break-word; }
-.light-presets button[aria-pressed="true"], .plug-controls button[aria-pressed="true"] { border-color: var(--red); color: var(--paper); background: var(--red); }
-.light-presets button:focus-visible, .plug-controls button:focus-visible { outline: 1px solid var(--red); outline-offset: 3px; }
-.light-presets button:disabled, .plug-controls button:disabled { cursor: default; }
-.light-presets.is-pending button, .plug-controls.is-pending button { opacity: 0.45; }
-.light-presets.is-unavailable button, .plug-controls.is-unavailable button { opacity: 0.28; }
+.light-presets { position: relative; grid-column: 1 / -1; display: flex; flex-direction: column; align-items: flex-start; gap: clamp(6px, 0.9vh, 9px); margin: clamp(2px, 0.6vh, 6px) 0 0 4px; }
+.light-presets button { appearance: none; display: grid; place-items: center; width: clamp(42px, 3.8vw, 48px); height: clamp(42px, 3.8vw, 48px); margin: 0; padding: 0; border: 1px solid var(--hairline); border-radius: 50%; color: var(--ink); background: transparent; font-family: var(--latin-font); font-size: clamp(8px, 0.8vw, 10px); line-height: 1; letter-spacing: 0.03em; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: color 140ms ease, border-color 140ms ease, background-color 140ms ease, opacity 140ms ease; }
+.light-presets button[aria-pressed="true"] { border-color: var(--red); color: var(--paper); background: var(--red); }
+.light-presets button:focus-visible { outline: 1px solid var(--red); outline-offset: 3px; }
+.light-presets button:disabled { cursor: default; }
+.light-presets.is-pending button { opacity: 0.45; }
+.light-presets.is-unavailable button { opacity: 0.28; }
 .light-status { position: absolute; top: 0; left: clamp(50px, 4.5vw, 57px); color: var(--red); font-family: var(--latin-font); font-size: 10px; }
+/* Absolutely positioned inside #light-controls (like .light-color-panel below) so it
+   never adds height to .weekday-panel's flow and cannot push or misalign anything above/below it. */
+.plug-controls { position: absolute; top: 0; left: clamp(64px, 5.8vw, 74px); z-index: 6; display: grid; grid-template-columns: repeat(2, 1fr); gap: clamp(4px, 0.6vh, 6px); }
+.plug-controls button { appearance: none; display: grid; place-items: center; width: clamp(34px, 3vw, 40px); height: clamp(34px, 3vw, 40px); margin: 0; padding: 2px; border: 1px solid var(--hairline); border-radius: 50%; color: var(--ink); background: transparent; font-family: var(--latin-font); font-size: clamp(5.5px, 0.55vw, 6.5px); line-height: 1.05; letter-spacing: 0.02em; text-align: center; white-space: normal; word-break: break-word; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: color 140ms ease, border-color 140ms ease, background-color 140ms ease, opacity 140ms ease; }
+.plug-controls button[aria-pressed="true"] { border-color: var(--red); color: var(--paper); background: var(--red); }
+.plug-controls button:focus-visible { outline: 1px solid var(--red); outline-offset: 3px; }
+.plug-controls button:disabled { cursor: default; }
+.plug-controls.is-pending button { opacity: 0.45; }
+.plug-controls.is-unavailable button { opacity: 0.28; }
 .light-color-panel { position: absolute; bottom: 0; left: clamp(54px, 5vw, 64px); z-index: 8; width: clamp(224px, 23vw, 258px); padding: 14px 16px 16px; border: 1px solid var(--ink); border-radius: 14px; color: var(--ink); background: var(--paper); font-family: var(--latin-font); box-shadow: none; overflow: clip; }
 .light-color-panel[hidden] { display: none; }
 .color-panel-heading { display: flex; align-items: baseline; gap: 5px; padding-bottom: 8px; border-bottom: 1px solid var(--hairline); font-size: 11px; letter-spacing: 0.1em; }
@@ -466,7 +472,8 @@ body.editor-is-open .calendar-sheet [data-editor-selected="true"] { outline: 2px
   .clock { font-size: clamp(40px, 7.4vw, 72px); }
   .stopwatch { left: calc(100% + 32px); font-size: clamp(20px, 3.55vw, 36px); }
   .clock-label { display: none; }
-  .light-presets button, .plug-controls button { width: 40px; height: 40px; }
+  .light-presets button { width: 40px; height: 40px; }
+  .plug-controls button { width: 32px; height: 32px; }
   .light-color-panel { left: 48px; width: 224px; padding: 12px 14px 14px; }
   .color-wheel-wrap { width: 132px; height: 132px; margin-block: 9px 11px; }
   .day-number { font-size: clamp(250px, 66vw, 410px); }

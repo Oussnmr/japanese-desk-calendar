@@ -289,6 +289,8 @@ npm run build   # rebuilds ignored dist/
 npm run deploy  # local Wrangler deploy; normally GitHub Actions deploys main
 ```
 
+Line endings are normalized to LF in the repository by [`.gitattributes`](.gitattributes). This project is edited from more than one machine and more than one assistant; without it, a Windows checkout rewrites every file to CRLF and each side sees the whole tree as modified. Never commit a wholesale line-ending flip.
+
 Normal contribution procedure:
 
 1. Inspect the affected source and preserve unrelated user changes.

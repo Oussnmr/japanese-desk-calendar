@@ -1,0 +1,6 @@
+# One agent edits from Windows, another from Linux. Normalize in the repository
+# so line endings never show up as a change and never collide between them.
+* text=auto eol=lf
+
+*.png binary
+*.ttf binary

@@ -314,7 +314,7 @@ Normal contribution procedure:
 
 ## 12. Working across two assistants
 
-This repository is edited by two AI assistants in alternation (Claude and ChatGPT/Codex), never at the same time. The handoff rule: whoever finishes a turn leaves the working tree clean and pushed to `main` — no uncommitted or unpushed work when control passes to the other assistant. Before starting, check `git status` and `git log` to see what the other assistant left. `HANDOVER.md` must be updated in the same batch of commits as any change it describes, not as an afterthought — an outdated handover is worse than none, since the next assistant trusts it as the source of truth.
+This repository is edited by two AI assistants in alternation (Claude and ChatGPT/Codex), never at the same time. The handoff rule: whoever finishes a turn leaves the working tree clean and pushed to `main` — no uncommitted or unpushed work when control passes to the other assistant. Before starting, check `git status` and `git log` to see what the other assistant left. `HANDOVER.md` must be updated in the same batch of commits as any change it describes, not as an afterthought — an outdated handover is worse than none, since the next assistant trusts it as the source of truth. `CLAUDE.md` and `AGENTS.md` at the repository root both point to this document and must stay identical to each other.
 
 ## 13. Quick orientation for the next agent
 

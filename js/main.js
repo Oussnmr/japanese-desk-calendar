@@ -5,7 +5,9 @@ const TIME_ZONE = "Europe/Brussels";
 const WEATHER_REFRESH_MS = 20 * 60 * 1000;
 const LIGHT_REFRESH_MS = 30 * 1000;
 const PRAYER_REFRESH_MS = 30 * 60 * 1000;
+const THEME_REFRESH_MS = 60 * 1000;
 const THEME_KEY = "jdc-theme";
+const THEME_SYNC_URL = "/api/theme";
 const EDITOR_DRAFT_KEY = "jdc-calendar-editor-draft";
 const EDITOR_PROFILES_KEY = "jdc-calendar-editor-profiles";
 const EDITOR_IMAGES_KEY = "jdc-calendar-editor-images";
@@ -282,6 +284,7 @@ function resetEditor() {
 }
 
 let profileSyncAvailable = false;
+let themeSyncAvailable = false;
 
 function storedProfiles() {
   return storedJson(EDITOR_PROFILES_KEY, {});
@@ -716,6 +719,24 @@ function applyTheme(theme, persist = false) {
   }
 }
 
+async function pullTheme() {
+  try {
+    const { theme } = await profileRequest(THEME_SYNC_URL);
+    themeSyncAvailable = true;
+    if (theme === "dark" || theme === "light") applyTheme(theme, true);
+  } catch {
+    themeSyncAvailable = false;
+  }
+}
+
+function pushTheme(theme) {
+  profileRequest(THEME_SYNC_URL, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ theme }),
+  }).then(() => { themeSyncAvailable = true; }, () => { themeSyncAvailable = false; });
+}
+
 function brusselsDateParts(date = new Date()) {
   const parts = Object.fromEntries(
     dateFormatter.formatToParts(date).filter(({ type }) => type !== "literal").map(({ type, value }) => [type, value]),
@@ -931,7 +952,9 @@ editorState = {
 applyEditorState();
 recordEditorHistory();
 elements["theme-toggle"].addEventListener("click", () => {
-  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
+  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  applyTheme(next, true);
+  pushTheme(next);
   if (editorOpen) updateEditorFields();
 });
 elements["calendar-editor-toggle"].addEventListener("click", () => setEditorOpen(!editorOpen));
@@ -1099,4 +1122,6 @@ for (const name of PLUG_NAMES) {
   setInterval(() => refreshPlug(name), LIGHT_REFRESH_MS);
 }
 syncEditorProfiles();
+pullTheme();
+setInterval(pullTheme, THEME_REFRESH_MS);
 requestWakeLock();

@@ -29,9 +29,10 @@ The Cloudflare Worker also serves the built static files from `dist/` through th
 Important boundaries:
 
 - Tuya credentials **must remain Worker secrets**. Never place them in `index.html`, `js/`, a public endpoint, a committed `.env`, browser storage, or a screenshot.
-- The visual editor draft, imported **images**, and the theme stay **local to each browser** (`localStorage`).
+- The visual editor draft and imported **images** stay **local to each browser** (`localStorage`).
 - **Editor profiles are shared across devices** through Workers KV, behind the same private token as the lamp. Layout, text and colours sync; images never do. Every `/api/profiles*` endpoint is authenticated — there is still no public write API.
-- `/api/prayers` is public and read-only. Every `/api/light/*` endpoint requires the private setup cookie or `Authorization: Bearer <LIGHT_ACCESS_TOKEN>`.
+- **The light/dark theme is shared across devices** the same way, through `/api/theme` (see §4). Each device also keeps a local `jdc-theme` cache so it still has a theme offline or before the first sync.
+- `/api/prayers` is public and read-only. Every `/api/light/*`, `/api/plug/*`, and `/api/theme` endpoint requires the private setup cookie or `Authorization: Bearer <LIGHT_ACCESS_TOKEN>`.
 - `dist/` is generated and ignored. Change source files, then run the build.
 
 ## 3. Repository map
@@ -48,11 +49,12 @@ Important boundaries:
 | [`src/plug-model.js`](src/plug-model.js) | Detects a smart plug's boolean switch DP from its live status; normalizes on/off. |
 | [`src/prayer-model.js`](src/prayer-model.js) | Parses Mawaqit page data into the five prayer/Iqama records. |
 | [`src/profile-model.js`](src/profile-model.js) | Validates and clamps editor profiles before they reach or leave KV. |
+| [`src/theme-model.js`](src/theme-model.js) | Computes the shared light/dark theme, including the DST-aware 08:00 Brussels auto-switch to light. |
 | [`service-worker.js`](service-worker.js) | PWA network-first/offline cache. Bump its cache name when changing public assets. |
 | [`scripts/build-static.mjs`](scripts/build-static.mjs) | Copies a strict public allow-list into `dist/`. |
 | [`scripts/prepare-cloud-secrets.mjs`](scripts/prepare-cloud-secrets.mjs) | Creates ignored local Cloudflare secret material and private setup URL. |
 | [`tools/lepro-light/`](tools/lepro-light/README.md) | Optional local Python Tuya bridge for diagnostics/fallback. Not used by the deployed Worker. |
-| [`tests/`](tests) | Node tests for prayer parsing and Tuya light-model conversion. |
+| [`tests/`](tests) | Node tests for prayer parsing, Tuya light-model conversion, profiles, and the theme auto-switch. |
 | [`wrangler.jsonc`](wrangler.jsonc) | Worker entrypoint and static asset binding. |
 | [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) | Runs checks, builds, then deploys every `main` push. |
 
@@ -83,7 +85,10 @@ Important boundaries:
 
 ### Theme and stopwatch
 
-- Theme button: toggles light/dark and persists `jdc-theme` locally.
+- Theme button: toggles light/dark, persists `jdc-theme` locally, and (when sync is available) `PUT`s the new value to `/api/theme` so every other device picks it up.
+- On load and every `THEME_REFRESH_MS` (60s), `js/main.js` calls `GET /api/theme` and applies whatever it returns — this is how a toggle on one device reaches the others, and how the daily auto-switch below actually lands in the UI without a manual refresh.
+- **Daily auto-switch to light:** the Worker never runs a background job for this — `effectiveTheme()` in [`src/theme-model.js`](src/theme-model.js) computes it on every `GET /api/theme`. If the stored value is `dark` and it is at/after 08:00 Europe/Brussels (DST-aware via `Intl`), the response is `light`, *unless* that `dark` value was itself set at/after 08:00 that same day (a fresh manual choice made after the flip hour is honoured, not immediately reverted). Before 08:00, `dark` is always returned as-is. `light` is never auto-flipped. This logic is covered by `tests/theme-model.test.js`, including the DST boundary.
+- The shared value lives in the same `EDITOR_PROFILES` KV namespace as editor profiles, under the key `theme` (`{ value, updatedAt }`) — no new KV binding needed. `/api/theme` is gated by `LIGHT_ACCESS_TOKEN` exactly like `/api/profiles`; without the binding or the token it degrades to `503` and each device just keeps using its local `jdc-theme` value, same graceful-degradation pattern as everywhere else.
 - Stopwatch: `START` / `PAUSE` and `CLEAR`; the display is hidden while zero. The stopwatch display and controls are separate editor targets.
 
 ### Lamp and device controls
@@ -169,6 +174,8 @@ Each plug is wired through the `PLUGS` map in [`src/worker.js`](src/worker.js), 
 | `GET /api/profiles` | — | All shared editor profiles. Authenticated. |
 | `PUT /api/profiles/<name>` | `{ overrides, text, colors }` | Creates or replaces one profile. Authenticated, sanitized, 64 KB maximum. |
 | `DELETE /api/profiles/<name>` | — | Removes one profile. Authenticated and idempotent. |
+| `GET /api/theme` | — | `{ theme: "dark" \| "light" }`, already resolved through the 08:00 auto-switch. Authenticated. |
+| `PUT /api/theme` | `{ theme: "dark" \| "light" }` | Sets the shared theme. Authenticated. |
 | `GET /setup/<private-token>` | — | Installs `jdc_light` HttpOnly, Secure, SameSite=Strict cookie and redirects home. |
 
 After each Tuya command, the Worker polls status up to six times (400 ms interval) and only returns after expected state is observed. This confirmation is important for the UI and should be preserved.
@@ -283,7 +290,7 @@ jdc-calendar-editor-images
 - The CSS has a compact fallback below 820 px or in portrait; validate landscape first after layout changes.
 - Use pointer events, `touch-action`, visible focus styles, semantic buttons/labels, and `aria-pressed`/`aria-expanded` when extending controls.
 - RGB wheel is keyboard accessible as a slider. Sliders and drag interactions are designed for touch.
-- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v19`.
+- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v20`.
 - A user with an already-open PWA may need one refresh/reopen after deploy to claim the new service worker.
 
 ## 8. Design system
@@ -316,7 +323,8 @@ jdc-calendar-editor-images
 | `5734dd5` | Added the `LAMPE`, `MULTIPRISES`, and `PROJECTEUR` plugs; moved plug buttons out of `#light-controls` into their own `#plug-controls` grid and editor target — this pushed and misaligned `.weekday-panel`'s other content because it took part in normal flow. |
 | `e13281c` | Fixed that regression: `#plug-controls` is nested back inside `#light-controls` and made `position: absolute` (like `.light-color-panel`), so it no longer adds height to `.weekday-panel`'s flow. `.light-presets` itself is restored byte-for-byte to its pre-plug CSS. |
 | `f1b924a` | Reworked the home screen to 4 buttons (`ON`, `NS` scene, `CHILL`, gear) plus a 7-control `#settings-panel` popup (5 device toggles, `ALL OFF`, `COLOR` nested-popup). No Worker/endpoint changes — `NS` and `ALL OFF` are pure client-side orchestration over the existing `/api/light/*` and `/api/plug/<name>/*` endpoints. Also fixed a latent bug where plug button dimming classes (`is-pending`/`is-unavailable`, set on the button by `js/main.js`) never matched their CSS selectors (written against a container class instead). |
-| _current_ | `NS` "on" now also turns the lamp off. Hid `.weekday-panel .rule` (Weekday separator), which was overlapping the prayer countdown and reading as a stray red bar under the prayer time. |
+| `697afa7` | `NS` "on" now also turns the lamp off. Hid `.weekday-panel .rule` (Weekday separator), which was overlapping the prayer countdown and reading as a stray red bar under the prayer time. |
+| _current_ | Theme is now shared across devices via `GET`/`PUT /api/theme` (KV, same `EDITOR_PROFILES` namespace as profiles), polled every 60s. Added a daily auto-switch to light at 08:00 Europe/Brussels, computed on read in [`src/theme-model.js`](src/theme-model.js) (no cron), with DST-aware tests. |
 
 ## 10. Development, testing, deployment
 

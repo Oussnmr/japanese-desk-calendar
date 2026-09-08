@@ -5,6 +5,7 @@ import {
 import { parseMawaqitPrayers } from "./prayer-model.js";
 import { normalizeProfileName, profileTooLarge, sanitizeProfile, sanitizeProfileMap } from "./profile-model.js";
 import { findPlugSwitchCode, normalizePlugStatus } from "./plug-model.js";
+import { effectiveTheme } from "./theme-model.js";
 
 const REGION_HOSTS = {
   cn: "openapi.tuyacn.com",
@@ -22,6 +23,7 @@ const encoder = new TextEncoder();
 const PRAYER_URL = "https://mawaqit.net/fr/masjid-al-abidin-bruxelles-1000-belgium";
 const PRAYER_CACHE_MS = 15 * 60 * 1000;
 const PROFILES_KEY = "editor-profiles";
+const THEME_KEY = "theme";
 
 function json(body, status = 200, headers = {}) {
   return new Response(JSON.stringify(body), {
@@ -299,6 +301,31 @@ async function writeProfiles(env, profiles) {
   await profileStore(env).put(PROFILES_KEY, JSON.stringify(profiles));
 }
 
+async function readTheme(env) {
+  return profileStore(env)?.get(THEME_KEY, "json") ?? null;
+}
+
+async function writeTheme(env, value) {
+  await profileStore(env).put(THEME_KEY, JSON.stringify({ value, updatedAt: Date.now() }));
+}
+
+async function handleTheme(request, env) {
+  if (!env.LIGHT_ACCESS_TOKEN) return json({ error: "Theme sync is not configured" }, 503);
+  if (!authorized(request, env)) return json({ error: "Unauthorized" }, 401);
+  if (!profileStore(env)) return json({ error: "Theme storage is not bound" }, 503);
+
+  if (request.method === "GET") return json({ theme: effectiveTheme(await readTheme(env)) });
+
+  if (request.method === "PUT") {
+    const { theme } = await requestJson(request);
+    if (theme !== "dark" && theme !== "light") return json({ error: "Invalid theme" }, 400);
+    await writeTheme(env, theme);
+    return json({ theme });
+  }
+
+  return json({ error: "Not found" }, 404);
+}
+
 async function handleProfiles(request, env, url) {
   if (!env.LIGHT_ACCESS_TOKEN) return json({ error: "Profile sync is not configured" }, 503);
   if (!authorized(request, env)) return json({ error: "Unauthorized" }, 401);
@@ -366,6 +393,17 @@ export default {
       } catch (error) {
         const message = error instanceof Error ? error.message : "Profile service unavailable";
         console.error(JSON.stringify({ event: "profile_api_error", path: url.pathname, message }));
+        return json({ error: message }, 503);
+      }
+    }
+
+    if (url.pathname === "/api/theme") {
+      if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { allow: "GET, PUT, OPTIONS" } });
+      try {
+        return await handleTheme(request, env);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Theme service unavailable";
+        console.error(JSON.stringify({ event: "theme_api_error", path: url.pathname, message }));
         return json({ error: message }, 503);
       }
     }

@@ -291,7 +291,7 @@ jdc-calendar-editor-images
 - The CSS has a compact fallback below 820 px or in portrait; validate landscape first after layout changes.
 - Use pointer events, `touch-action`, visible focus styles, semantic buttons/labels, and `aria-pressed`/`aria-expanded` when extending controls.
 - RGB wheel is keyboard accessible as a slider. Sliders and drag interactions are designed for touch.
-- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v21`.
+- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v22`.
 - A user with an already-open PWA may need one refresh/reopen after deploy to claim the new service worker.
 
 ## 8. Design system
@@ -302,7 +302,7 @@ jdc-calendar-editor-images
   - `NemriJPN-Brush`: Japanese accents.
   - `KatanaCalendar`: large numerals.
   - `ShipporiAntiqueB1`: Japanese text.
-- Prefer thin rules, opaque paper panels, little or no shadow, and measured spacing.
+- Prefer thin rules, opaque paper panels, little or no shadow, and measured spacing. Exception: `.settings-panel` and `.light-color-panel` do carry a real `box-shadow` — both are already 100% opaque (`background: var(--paper)`, no alpha), but floating directly over same-coloured content with only a 1px border read as "transparent" with no shadow. Keep the shadow subtle; don't add one to panels that aren't floating over other content.
 - Avoid glass effects, heavy cards, generic dashboard widgets, translucent menus, or global CSS refactors.
 
 ## 9. Change history relevant to the current project
@@ -326,7 +326,8 @@ jdc-calendar-editor-images
 | `f1b924a` | Reworked the home screen to 4 buttons (`ON`, `NS` scene, `CHILL`, gear) plus a 7-control `#settings-panel` popup (5 device toggles, `ALL OFF`, `COLOR` nested-popup). No Worker/endpoint changes — `NS` and `ALL OFF` are pure client-side orchestration over the existing `/api/light/*` and `/api/plug/<name>/*` endpoints. Also fixed a latent bug where plug button dimming classes (`is-pending`/`is-unavailable`, set on the button by `js/main.js`) never matched their CSS selectors (written against a container class instead). |
 | `697afa7` | `NS` "on" now also turns the lamp off. Hid `.weekday-panel .rule` (Weekday separator), which was overlapping the prayer countdown and reading as a stray red bar under the prayer time. |
 | `9c00f3f` | Theme is now shared across devices via `GET`/`PUT /api/theme` (KV, same `EDITOR_PROFILES` namespace as profiles), polled every 60s. Added a daily auto-switch to light at 08:00 Europe/Brussels, computed on read in [`src/theme-model.js`](src/theme-model.js) (no cron), with DST-aware tests. |
-| _current_ | Generalized the single 08:00 flip into a full editable day/night schedule (`DAY`/`NIGHT` time inputs in the settings popup, `theme-schedule` KV key). Shortened the sync poll from 60s to 15s so toggles and schedule edits reach other devices closer to instantly. |
+| `f1ecb40` | Generalized the single 08:00 flip into a full editable day/night schedule (`DAY`/`NIGHT` time inputs in the settings popup, `theme-schedule` KV key). Shortened the sync poll from 60s to 15s so toggles and schedule edits reach other devices closer to instantly. |
+| _current_ | Gave `#settings-toggle` a real settings glyph (three sliders with knobs) — the previous circle-plus-8-spokes icon read as a sun. Added a subtle `box-shadow` to `.settings-panel`/`.light-color-panel`: both were already opaque but, floating over same-coloured content with only a 1px border, looked "transparent". |
 
 ## 10. Development, testing, deployment
 

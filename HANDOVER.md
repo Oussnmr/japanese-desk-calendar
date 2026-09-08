@@ -49,7 +49,7 @@ Important boundaries:
 | [`src/plug-model.js`](src/plug-model.js) | Detects a smart plug's boolean switch DP from its live status; normalizes on/off. |
 | [`src/prayer-model.js`](src/prayer-model.js) | Parses Mawaqit page data into the five prayer/Iqama records. |
 | [`src/profile-model.js`](src/profile-model.js) | Validates and clamps editor profiles before they reach or leave KV. |
-| [`src/theme-model.js`](src/theme-model.js) | Computes the shared light/dark theme, including the DST-aware 08:00 Brussels auto-switch to light. |
+| [`src/theme-model.js`](src/theme-model.js) | Computes the shared light/dark theme from a configurable daily day/night schedule, DST-aware. |
 | [`service-worker.js`](service-worker.js) | PWA network-first/offline cache. Bump its cache name when changing public assets. |
 | [`scripts/build-static.mjs`](scripts/build-static.mjs) | Copies a strict public allow-list into `dist/`. |
 | [`scripts/prepare-cloud-secrets.mjs`](scripts/prepare-cloud-secrets.mjs) | Creates ignored local Cloudflare secret material and private setup URL. |
@@ -86,8 +86,9 @@ Important boundaries:
 ### Theme and stopwatch
 
 - Theme button: toggles light/dark, persists `jdc-theme` locally, and (when sync is available) `PUT`s the new value to `/api/theme` so every other device picks it up.
-- On load and every `THEME_REFRESH_MS` (60s), `js/main.js` calls `GET /api/theme` and applies whatever it returns — this is how a toggle on one device reaches the others, and how the daily auto-switch below actually lands in the UI without a manual refresh.
-- **Daily auto-switch to light:** the Worker never runs a background job for this — `effectiveTheme()` in [`src/theme-model.js`](src/theme-model.js) computes it on every `GET /api/theme`. If the stored value is `dark` and it is at/after 08:00 Europe/Brussels (DST-aware via `Intl`), the response is `light`, *unless* that `dark` value was itself set at/after 08:00 that same day (a fresh manual choice made after the flip hour is honoured, not immediately reverted). Before 08:00, `dark` is always returned as-is. `light` is never auto-flipped. This logic is covered by `tests/theme-model.test.js`, including the DST boundary.
+- On load and every `THEME_REFRESH_MS` (15s), `js/main.js` calls `GET /api/theme` and applies whatever it returns — this is how a toggle (or a schedule edit) on one device reaches the others. 15s is a deliberate compromise: this is a single-owner app with a handful of devices, so polling that often is cheap, and it makes cross-device sync and the scheduled switch both feel closer to instant without needing push infrastructure (no WebSocket/Durable Object — plain polling was judged simple enough for this app's scale).
+- **Day/night schedule:** two editable times live in the settings popup (§4), `DAY` and `NIGHT` — the hour each mode should start, every day. The Worker never runs a background job for this — `effectiveTheme()` in [`src/theme-model.js`](src/theme-model.js) computes the schedule-driven theme on every `GET /api/theme`, DST-aware via `Intl` (Europe/Brussels). A manual toggle is honoured until the *next* scheduled boundary (day or night) actually passes, then the schedule reasserts itself — so nudging the theme mid-day doesn't get instantly overridden, but it also doesn't silently stick forever. Defaults are `08:00` (day) / `20:00` (night) until the owner changes them. This logic is covered by `tests/theme-model.test.js`, including both DST sides and a custom (night-before-day) schedule.
+- The schedule is stored in the same `EDITOR_PROFILES` KV namespace, key `theme-schedule` (`{ dayMinute, nightMinute }`, minutes since midnight). `PUT /api/theme` accepts `{ theme }`, `{ schedule }`, or both in one call; `GET /api/theme` always returns `{ theme, schedule }`.
 - The shared value lives in the same `EDITOR_PROFILES` KV namespace as editor profiles, under the key `theme` (`{ value, updatedAt }`) — no new KV binding needed. `/api/theme` is gated by `LIGHT_ACCESS_TOKEN` exactly like `/api/profiles`; without the binding or the token it degrades to `503` and each device just keeps using its local `jdc-theme` value, same graceful-degradation pattern as everywhere else.
 - Stopwatch: `START` / `PAUSE` and `CLEAR`; the display is hidden while zero. The stopwatch display and controls are separate editor targets.
 
@@ -102,7 +103,7 @@ The left column (`#light-controls`) has four round controls, all same diameter/a
 | `CHILL` / `BRIGHT` | One control that switches between white presets. The label reflects the active preset when one is active. |
 | gear icon (`#settings-toggle`) | Opens `#settings-panel`, an opaque popup listing every device individually. |
 
-`#settings-panel` holds seven controls in a 3-column grid: one round toggle per device (`PLAFONIER`, `LED`, `LAMPE`, `MULTIPRISES`, `PROJECTEUR` — five total), an `ALL OFF` button that turns all five off at once, and `COLOR`, which opens the RGB panel described below as a popup nested inside the settings popup. `PLAFONIER` there is a second button mirroring `#light-power`'s state (both call `/api/light/toggle`; `showLightState()` updates both in lockstep) — everything else in the panel is the exact same buttons/state objects the plugs already used before this popup existed, just relocated in the DOM. Opening `COLOR` does not add a Worker call; it only reveals the already-existing `.light-color-panel`.
+`#settings-panel` holds seven controls in a 3-column grid: one round toggle per device (`PLAFONIER`, `LED`, `LAMPE`, `MULTIPRISES`, `PROJECTEUR` — five total), an `ALL OFF` button that turns all five off at once, and `COLOR`, which opens the RGB panel described below as a popup nested inside the settings popup. `PLAFONIER` there is a second button mirroring `#light-power`'s state (both call `/api/light/toggle`; `showLightState()` updates both in lockstep) — everything else in the panel is the exact same buttons/state objects the plugs already used before this popup existed, just relocated in the DOM. Opening `COLOR` does not add a Worker call; it only reveals the already-existing `.light-color-panel`. Below that grid, `.settings-schedule` holds the two `<input type="time">` fields (`DAY`, `NIGHT`) that edit the shared theme schedule described in the next section.
 
 Preset definitions in [`src/light-model.js`](src/light-model.js):
 
@@ -174,8 +175,8 @@ Each plug is wired through the `PLUGS` map in [`src/worker.js`](src/worker.js), 
 | `GET /api/profiles` | — | All shared editor profiles. Authenticated. |
 | `PUT /api/profiles/<name>` | `{ overrides, text, colors }` | Creates or replaces one profile. Authenticated, sanitized, 64 KB maximum. |
 | `DELETE /api/profiles/<name>` | — | Removes one profile. Authenticated and idempotent. |
-| `GET /api/theme` | — | `{ theme: "dark" \| "light" }`, already resolved through the 08:00 auto-switch. Authenticated. |
-| `PUT /api/theme` | `{ theme: "dark" \| "light" }` | Sets the shared theme. Authenticated. |
+| `GET /api/theme` | — | `{ theme, schedule: { dayMinute, nightMinute } }`. `theme` is already resolved through the day/night schedule. Authenticated. |
+| `PUT /api/theme` | `{ theme? }`, `{ schedule? }`, or both | Sets the manual theme and/or the schedule; returns the same shape as `GET`. Authenticated. |
 | `GET /setup/<private-token>` | — | Installs `jdc_light` HttpOnly, Secure, SameSite=Strict cookie and redirects home. |
 
 After each Tuya command, the Worker polls status up to six times (400 ms interval) and only returns after expected state is observed. This confirmation is important for the UI and should be preserved.
@@ -290,7 +291,7 @@ jdc-calendar-editor-images
 - The CSS has a compact fallback below 820 px or in portrait; validate landscape first after layout changes.
 - Use pointer events, `touch-action`, visible focus styles, semantic buttons/labels, and `aria-pressed`/`aria-expanded` when extending controls.
 - RGB wheel is keyboard accessible as a slider. Sliders and drag interactions are designed for touch.
-- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v20`.
+- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v21`.
 - A user with an already-open PWA may need one refresh/reopen after deploy to claim the new service worker.
 
 ## 8. Design system
@@ -324,7 +325,8 @@ jdc-calendar-editor-images
 | `e13281c` | Fixed that regression: `#plug-controls` is nested back inside `#light-controls` and made `position: absolute` (like `.light-color-panel`), so it no longer adds height to `.weekday-panel`'s flow. `.light-presets` itself is restored byte-for-byte to its pre-plug CSS. |
 | `f1b924a` | Reworked the home screen to 4 buttons (`ON`, `NS` scene, `CHILL`, gear) plus a 7-control `#settings-panel` popup (5 device toggles, `ALL OFF`, `COLOR` nested-popup). No Worker/endpoint changes — `NS` and `ALL OFF` are pure client-side orchestration over the existing `/api/light/*` and `/api/plug/<name>/*` endpoints. Also fixed a latent bug where plug button dimming classes (`is-pending`/`is-unavailable`, set on the button by `js/main.js`) never matched their CSS selectors (written against a container class instead). |
 | `697afa7` | `NS` "on" now also turns the lamp off. Hid `.weekday-panel .rule` (Weekday separator), which was overlapping the prayer countdown and reading as a stray red bar under the prayer time. |
-| _current_ | Theme is now shared across devices via `GET`/`PUT /api/theme` (KV, same `EDITOR_PROFILES` namespace as profiles), polled every 60s. Added a daily auto-switch to light at 08:00 Europe/Brussels, computed on read in [`src/theme-model.js`](src/theme-model.js) (no cron), with DST-aware tests. |
+| `9c00f3f` | Theme is now shared across devices via `GET`/`PUT /api/theme` (KV, same `EDITOR_PROFILES` namespace as profiles), polled every 60s. Added a daily auto-switch to light at 08:00 Europe/Brussels, computed on read in [`src/theme-model.js`](src/theme-model.js) (no cron), with DST-aware tests. |
+| _current_ | Generalized the single 08:00 flip into a full editable day/night schedule (`DAY`/`NIGHT` time inputs in the settings popup, `theme-schedule` KV key). Shortened the sync poll from 60s to 15s so toggles and schedule edits reach other devices closer to instantly. |
 
 ## 10. Development, testing, deployment
 

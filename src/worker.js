@@ -5,7 +5,7 @@ import {
 import { parseMawaqitPrayers } from "./prayer-model.js";
 import { normalizeProfileName, profileTooLarge, sanitizeProfile, sanitizeProfileMap } from "./profile-model.js";
 import { findPlugSwitchCode, normalizePlugStatus } from "./plug-model.js";
-import { effectiveTheme } from "./theme-model.js";
+import { effectiveTheme, sanitizeSchedule } from "./theme-model.js";
 
 const REGION_HOSTS = {
   cn: "openapi.tuyacn.com",
@@ -24,6 +24,7 @@ const PRAYER_URL = "https://mawaqit.net/fr/masjid-al-abidin-bruxelles-1000-belgi
 const PRAYER_CACHE_MS = 15 * 60 * 1000;
 const PROFILES_KEY = "editor-profiles";
 const THEME_KEY = "theme";
+const THEME_SCHEDULE_KEY = "theme-schedule";
 
 function json(body, status = 200, headers = {}) {
   return new Response(JSON.stringify(body), {
@@ -309,18 +310,34 @@ async function writeTheme(env, value) {
   await profileStore(env).put(THEME_KEY, JSON.stringify({ value, updatedAt: Date.now() }));
 }
 
+async function readThemeSchedule(env) {
+  return profileStore(env)?.get(THEME_SCHEDULE_KEY, "json") ?? null;
+}
+
+async function writeThemeSchedule(env, schedule) {
+  await profileStore(env).put(THEME_SCHEDULE_KEY, JSON.stringify(sanitizeSchedule(schedule)));
+}
+
+async function themePayload(env) {
+  const schedule = sanitizeSchedule(await readThemeSchedule(env));
+  return { theme: effectiveTheme(await readTheme(env), schedule), schedule };
+}
+
 async function handleTheme(request, env) {
   if (!env.LIGHT_ACCESS_TOKEN) return json({ error: "Theme sync is not configured" }, 503);
   if (!authorized(request, env)) return json({ error: "Unauthorized" }, 401);
   if (!profileStore(env)) return json({ error: "Theme storage is not bound" }, 503);
 
-  if (request.method === "GET") return json({ theme: effectiveTheme(await readTheme(env)) });
+  if (request.method === "GET") return json(await themePayload(env));
 
   if (request.method === "PUT") {
-    const { theme } = await requestJson(request);
-    if (theme !== "dark" && theme !== "light") return json({ error: "Invalid theme" }, 400);
-    await writeTheme(env, theme);
-    return json({ theme });
+    const body = await requestJson(request);
+    if (body.theme !== undefined) {
+      if (body.theme !== "dark" && body.theme !== "light") return json({ error: "Invalid theme" }, 400);
+      await writeTheme(env, body.theme);
+    }
+    if (body.schedule !== undefined) await writeThemeSchedule(env, body.schedule);
+    return json(await themePayload(env));
   }
 
   return json({ error: "Not found" }, 404);

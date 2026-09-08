@@ -79,6 +79,10 @@
               <button id="settings-all-off" type="button" aria-label="Turn all devices off">ALL OFF</button>
               <button id="light-color" type="button" aria-label="Open RGB light controls" aria-pressed="false" aria-expanded="false" aria-controls="light-color-panel" disabled>COLOR</button>
             </div>
+            <div class="settings-schedule">
+              <label>DAY <span>日</span><input id="theme-day-time" type="time" value="08:00"></label>
+              <label>NIGHT <span>夜</span><input id="theme-night-time" type="time" value="20:00"></label>
+            </div>
             <section class="light-color-panel" id="light-color-panel" aria-label="Custom light color" hidden>
               <div class="color-panel-heading"><span>色</span><b>COLOR</b><output id="light-color-hex">#E52B1A</output></div>
               <div class="color-wheel-wrap">

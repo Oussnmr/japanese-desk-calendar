@@ -5,7 +5,7 @@ const TIME_ZONE = "Europe/Brussels";
 const WEATHER_REFRESH_MS = 20 * 60 * 1000;
 const LIGHT_REFRESH_MS = 30 * 1000;
 const PRAYER_REFRESH_MS = 30 * 60 * 1000;
-const THEME_REFRESH_MS = 60 * 1000;
+const THEME_REFRESH_MS = 15 * 1000;
 const THEME_KEY = "jdc-theme";
 const THEME_SYNC_URL = "/api/theme";
 const EDITOR_DRAFT_KEY = "jdc-calendar-editor-draft";
@@ -39,7 +39,7 @@ const elements = Object.fromEntries(
   [
     "year", "weekday-ja", "weekday-en", "date-small", "hero-date", "day-number", "month-number", "prayer-panel", "prayer-list", "iqama-countdown", "next-iqama", "next-iqama-label",
     "month-en", "mini-calendar", "clock", "weather-temp", "weather-condition",
-    "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle",
+    "weather-high", "weather-low", "weather-wind", "weather-status", "theme-toggle", "theme-day-time", "theme-night-time",
     "light-controls", "light-power", "light-chill", "light-color", "light-color-panel", "light-color-wheel", "light-color-handle", "light-color-hex", "light-saturation", "light-saturation-value", "light-intensity", "light-intensity-value", "light-warmth", "light-warmth-value", "light-status",
     "scene-ns", "settings-toggle", "settings-panel", "settings-light-power", "settings-all-off",
     "plug-led-power", "plug-lampe-power", "plug-multiprises-power", "plug-projecteur-power",
@@ -719,11 +719,28 @@ function applyTheme(theme, persist = false) {
   }
 }
 
+function minutesToTimeValue(minutes) {
+  const clamped = Math.min(1439, Math.max(0, Math.round(Number(minutes) || 0)));
+  return `${String(Math.floor(clamped / 60)).padStart(2, "0")}:${String(clamped % 60).padStart(2, "0")}`;
+}
+
+function timeValueToMinutes(value) {
+  const [hours, minutes] = String(value).split(":").map(Number);
+  return Number.isFinite(hours) && Number.isFinite(minutes) ? hours * 60 + minutes : null;
+}
+
+function showThemeSchedule(schedule) {
+  if (!schedule) return;
+  if (document.activeElement !== elements["theme-day-time"]) elements["theme-day-time"].value = minutesToTimeValue(schedule.dayMinute);
+  if (document.activeElement !== elements["theme-night-time"]) elements["theme-night-time"].value = minutesToTimeValue(schedule.nightMinute);
+}
+
 async function pullTheme() {
   try {
-    const { theme } = await profileRequest(THEME_SYNC_URL);
+    const { theme, schedule } = await profileRequest(THEME_SYNC_URL);
     themeSyncAvailable = true;
     if (theme === "dark" || theme === "light") applyTheme(theme, true);
+    showThemeSchedule(schedule);
   } catch {
     themeSyncAvailable = false;
   }
@@ -735,6 +752,20 @@ function pushTheme(theme) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ theme }),
   }).then(() => { themeSyncAvailable = true; }, () => { themeSyncAvailable = false; });
+}
+
+function pushThemeSchedule() {
+  const dayMinute = timeValueToMinutes(elements["theme-day-time"].value);
+  const nightMinute = timeValueToMinutes(elements["theme-night-time"].value);
+  if (dayMinute === null || nightMinute === null) return;
+  profileRequest(THEME_SYNC_URL, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ schedule: { dayMinute, nightMinute } }),
+  }).then(({ theme }) => {
+    themeSyncAvailable = true;
+    if (theme === "dark" || theme === "light") applyTheme(theme, true);
+  }, () => { themeSyncAvailable = false; });
 }
 
 function brusselsDateParts(date = new Date()) {
@@ -957,6 +988,9 @@ elements["theme-toggle"].addEventListener("click", () => {
   pushTheme(next);
   if (editorOpen) updateEditorFields();
 });
+for (const id of ["theme-day-time", "theme-night-time"]) {
+  elements[id].addEventListener("change", pushThemeSchedule);
+}
 elements["calendar-editor-toggle"].addEventListener("click", () => setEditorOpen(!editorOpen));
 elements["calendar-editor-close"].addEventListener("click", () => {
   setEditorOpen(false);

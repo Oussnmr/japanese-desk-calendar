@@ -9,16 +9,18 @@ preference, and secure control of one Tuya light.
 One Cloudflare Worker serves the static PWA and the same-origin HTTPS API:
 
 ```
-iPad PWA → Cloudflare Worker → Tuya Cloud → light
+iPad PWA → Cloudflare Worker → Cloudflare Tunnel → bridge/ (home PC) → Tuya local LAN → devices
 ```
 
-The browser only calls `GET /api/light/status`, `POST /api/light/on`, and
-`POST /api/light/off`. Tuya credentials never leave the Worker secrets store.
-The personal control token is installed once as an HttpOnly same-site cookie by
-visiting a private setup URL on the iPad.
+The browser only calls the `/api/light/*` and `/api/plug/*` routes; the
+Worker never talks to Tuya Cloud for device control. The personal control
+token is installed once as an HttpOnly same-site cookie by visiting a
+private setup URL on the iPad. See `HANDOVER.md` §2/§5 and `bridge/README.md`
+for the full picture — this file is a quick pointer, not the source of truth.
 
-`tools/lepro-light` remains a local Python fallback for diagnostics. It is not
-needed once the Cloudflare deployment is live.
+`bridge/` (formerly `tools/lepro-light`) is load-bearing production
+infrastructure, not an optional fallback: it must be running (Docker, on an
+always-on home PC) for any device control to work at all.
 
 ## Development
 
@@ -34,8 +36,8 @@ unrelated font sources from being uploaded.
 ## Deploy
 
 1. Log in once with `npx wrangler login` and register a `workers.dev` subdomain.
-2. Keep Tuya values only in `tools/lepro-light/.env` locally.
-3. Run `node scripts/prepare-cloud-secrets.mjs`, then upload its ignored output
+2. Set up `bridge/` first — see `bridge/README.md` (Tuya local keys, Docker Compose, Cloudflare Tunnel) — and confirm it over the tunnel before touching Worker secrets.
+3. Put `BRIDGE_URL`/`BRIDGE_TOKEN`/device ids in `bridge/.env` locally, then run `node scripts/prepare-cloud-secrets.mjs` and upload its ignored output
    with `Get-Content -Raw tools/cloudflare/.cloudflare-secrets.json | npx wrangler secret bulk`.
 4. Run `npm run deploy`.
 

@@ -1,9 +1,11 @@
 .DS_Store
 Thumbs.db
 *.log
-tools/lepro-light/.env
-tools/lepro-light/.venv/
-tools/lepro-light/__pycache__/
+bridge/.env
+bridge/.venv/
+bridge/__pycache__/
+bridge/devices.json
+bridge/snapshot.json
 node_modules/
 dist/
 .wrangler/

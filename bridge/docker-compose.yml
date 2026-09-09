@@ -1,0 +1,18 @@
+services:
+  bridge:
+    build: .
+    restart: always
+    env_file: .env
+    volumes:
+      - ./devices.json:/app/devices.json:ro
+    ports:
+      - "8787:8787"  # for local curl testing (see README); the tunnel reaches it via the compose network either way
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: always
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - bridge

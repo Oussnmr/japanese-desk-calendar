@@ -7,19 +7,7 @@ import { normalizeProfileName, profileTooLarge, sanitizeProfile, sanitizeProfile
 import { findPlugSwitchCode, normalizePlugStatus } from "./plug-model.js";
 import { effectiveTheme, sanitizeSchedule } from "./theme-model.js";
 
-const REGION_HOSTS = {
-  cn: "openapi.tuyacn.com",
-  us: "openapi.tuyaus.com",
-  "us-e": "openapi-ueaz.tuyaus.com",
-  eu: "openapi.tuyaeu.com",
-  "eu-w": "openapi-weaz.tuyaeu.com",
-  in: "openapi.tuyain.com",
-  sg: "openapi-sg.iotbing.com",
-};
-
-let tokenCache = null;
 let prayerCache = null;
-const encoder = new TextEncoder();
 const PRAYER_URL = "https://mawaqit.net/fr/masjid-al-abidin-bruxelles-1000-belgium";
 const PRAYER_CACHE_MS = 15 * 60 * 1000;
 const PROFILES_KEY = "editor-profiles";
@@ -33,13 +21,12 @@ function json(body, status = 200, headers = {}) {
   });
 }
 
-function tuyaAccountConfigured(env) {
-  return ["TUYA_API_REGION", "TUYA_API_KEY", "TUYA_API_SECRET", "LIGHT_ACCESS_TOKEN"]
-    .every((name) => Boolean(env[name]));
+function bridgeConfigured(env) {
+  return ["BRIDGE_URL", "BRIDGE_TOKEN", "LIGHT_ACCESS_TOKEN"].every((name) => Boolean(env[name]));
 }
 
 function configured(env) {
-  return tuyaAccountConfigured(env) && Boolean(env.TUYA_DEVICE_ID);
+  return bridgeConfigured(env) && Boolean(env.TUYA_DEVICE_ID);
 }
 
 // Each entry maps a URL segment (/api/plug/<name>/...) to the Worker secret
@@ -76,76 +63,26 @@ function authorized(request, env) {
     || (session.length > 0 && equalSecrets(session, env.LIGHT_ACCESS_TOKEN));
 }
 
-async function digest(value) {
-  const bytes = await crypto.subtle.digest("SHA-256", encoder.encode(value));
-  return [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-async function hmac(secret, value) {
-  const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const bytes = await crypto.subtle.sign("HMAC", key, encoder.encode(value));
-  return [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
-}
-
-function hostFor(region) {
-  return REGION_HOSTS[String(region).toLowerCase()] || REGION_HOSTS.eu;
-}
-
-async function tuyaRequest(env, path, { method = "GET", body = null, accessToken = null } = {}) {
-  const timestamp = String(Date.now());
-  const content = body ? JSON.stringify(body) : "";
-  const headers = {};
-  if (content) {
-    headers["Content-type"] = "application/json";
-    headers["Signature-Headers"] = "Content-type";
-  }
-
-  const signedHeaders = content ? "Content-type:application/json\n" : "";
-  const prefix = accessToken
-    ? `${env.TUYA_API_KEY}${accessToken}${timestamp}`
-    : `${env.TUYA_API_KEY}${timestamp}`;
-  const stringToSign = `${method}\n${await digest(content)}\n${signedHeaders}\n${path}`;
-  const sign = await hmac(env.TUYA_API_SECRET, `${prefix}${stringToSign}`);
-  const requestHeaders = {
-    ...headers,
-    client_id: env.TUYA_API_KEY,
-    sign,
-    t: timestamp,
-    sign_method: "HMAC-SHA256",
-    mode: "cors",
-  };
-  if (accessToken) requestHeaders.access_token = accessToken;
-  else requestHeaders.secret = env.TUYA_API_SECRET;
-
-  const response = await fetch(`https://${hostFor(env.TUYA_API_REGION)}${path}`, {
+// Talks to the local Tuya bridge (see bridge/README.md) over the tunnel,
+// never to Tuya Cloud directly. `path` keeps the Tuya-Cloud-shaped form
+// callers already use (/v1.0/iot-03/devices/<id>/status|commands) purely so
+// none of them needed to change when this stopped being Tuya Cloud -
+// only the device id and the status/commands suffix are actually used.
+async function deviceRequest(env, path, { method = "GET", body = null } = {}) {
+  const match = path.match(/\/devices\/([^/]+)\/(status|commands)$/);
+  if (!match) throw new Error(`Unsupported device path: ${path}`);
+  const [, deviceId, action] = match;
+  const response = await fetch(`${env.BRIDGE_URL}/device/${deviceId}/${action}`, {
     method,
-    headers: requestHeaders,
-    body: content || undefined,
+    headers: {
+      authorization: `Bearer ${env.BRIDGE_TOKEN}`,
+      ...(body ? { "content-type": "application/json" } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
   });
   const payload = await response.json().catch(() => null);
-  if (!response.ok || !payload?.success) throw new Error(payload?.msg || "Tuya request failed");
+  if (!response.ok || !payload?.success) throw new Error(payload?.msg || "Bridge request failed");
   return payload.result;
-}
-
-async function accessToken(env, refresh = false) {
-  if (!refresh && tokenCache?.expiresAt > Date.now()) return tokenCache.value;
-  const result = await tuyaRequest(env, "/v1.0/token?grant_type=1");
-  tokenCache = {
-    value: result.access_token,
-    expiresAt: Date.now() + Math.max(60, Number(result.expire_time || 3600) - 60) * 1000,
-  };
-  return tokenCache.value;
-}
-
-async function deviceRequest(env, path, options) {
-  let token = await accessToken(env);
-  try {
-    return await tuyaRequest(env, path, { ...options, accessToken: token });
-  } catch (error) {
-    if (!/token invalid|token expired/i.test(error.message)) throw error;
-    token = await accessToken(env, true);
-    return tuyaRequest(env, path, { ...options, accessToken: token });
-  }
 }
 
 async function lightStatus(env) {
@@ -430,7 +367,7 @@ export default {
       const [, name, action] = plugMatch;
       if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { allow: "GET, POST, OPTIONS" } });
       const deviceId = plugDeviceId(env, name);
-      if (!tuyaAccountConfigured(env) || !deviceId) return json({ error: "Plug is not configured" }, 503);
+      if (!bridgeConfigured(env) || !deviceId) return json({ error: "Plug is not configured" }, 503);
       if (!authorized(request, env)) return json({ error: "Unauthorized" }, 401);
       try {
         if (action === "status" && request.method === "GET") return json(await plugStatus(env, deviceId));

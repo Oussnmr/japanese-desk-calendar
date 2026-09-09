@@ -3,11 +3,14 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
-const source = resolve(root, "tools/lepro-light/.env");
+const source = resolve(root, "bridge/.env");
 const target = resolve(root, "tools/cloudflare/.cloudflare-secrets.json");
 const localConfig = resolve(root, "tools/cloudflare/.env");
 const setupUrl = resolve(root, "tools/cloudflare/setup-url.txt");
-const required = ["TUYA_API_REGION", "TUYA_API_KEY", "TUYA_API_SECRET", "TUYA_DEVICE_ID"];
+// BRIDGE_URL/BRIDGE_TOKEN point the Worker at the local bridge (see
+// bridge/README.md); TUYA_API_REGION/KEY/SECRET stay local-only (one-time
+// tinytuya wizard use) and are deliberately not part of this list anymore.
+const required = ["BRIDGE_URL", "BRIDGE_TOKEN", "TUYA_DEVICE_ID"];
 // Extra Tuya devices (smart plugs, ...) are opt-in: only uploaded when present locally.
 const optional = [
   "TUYA_DEVICE_ID_PLUG_LED",

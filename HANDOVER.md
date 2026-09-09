@@ -20,15 +20,20 @@ iPad PWA (static HTML/CSS/JS)
   ├─ Open-Meteo directly: weather
   └─ Same-origin Cloudflare Worker
        ├─ Mawaqit: Salah/Iqama schedule (public read-only endpoint)
-       ├─ Tuya Cloud: lamp status and commands (authenticated endpoints)
-       └─ Workers KV: shared editor profiles (authenticated endpoints)
+       ├─ Home bridge (Cloudflare Tunnel): lamp + plug status and commands (authenticated)
+       └─ Workers KV: shared editor profiles, theme (authenticated endpoints)
+
+Home bridge (bridge/, Docker, runs on an always-on home PC)
+  └─ Tuya LOCAL LAN protocol (tinytuya) — NOT Tuya Cloud — to the 5 devices
 ```
 
 The Cloudflare Worker also serves the built static files from `dist/` through the `ASSETS` binding. It is not a separate frontend and backend deployment.
 
+Device control does **not** go through Tuya Cloud in normal operation — it goes through `bridge/` on the owner's home network, reached over a Cloudflare Tunnel. This was a deliberate architecture change (see §11 and change history): Tuya Cloud's free "IoT Core" API quota was exhausted once, breaking every device button on every client simultaneously until manually renewed, and the owner chose to trade that dependency for one on their own home PC + internet + tunnel instead. Tuya Cloud is still touched, but only once (or rarely) per device, to fetch its `local_key` — see `bridge/README.md`.
+
 Important boundaries:
 
-- Tuya credentials **must remain Worker secrets**. Never place them in `index.html`, `js/`, a public endpoint, a committed `.env`, browser storage, or a screenshot.
+- The bridge's `BRIDGE_TOKEN` and the Worker's `BRIDGE_URL`/`BRIDGE_TOKEN` secrets **must remain Worker/bridge secrets**. Never place them in `index.html`, `js/`, a public endpoint, a committed `.env`, browser storage, or a screenshot. Same rule for each device's `local_key` in `bridge/devices.json` (gitignored, never committed).
 - The visual editor draft and imported **images** stay **local to each browser** (`localStorage`).
 - **Editor profiles are shared across devices** through Workers KV, behind the same private token as the lamp. Layout, text and colours sync; images never do. Every `/api/profiles*` endpoint is authenticated — there is still no public write API.
 - **The light/dark theme is shared across devices** the same way, through `/api/theme` (see §4). Each device also keeps a local `jdc-theme` cache so it still has a theme offline or before the first sync.
@@ -44,7 +49,7 @@ Important boundaries:
 | [`js/main.js`](js/main.js) | Client controller: clock/date, light UI/API, RGB interaction, editor, prayers/Iqama countdown, stopwatch, theme, PWA registration. |
 | [`js/calendar.js`](js/calendar.js) | Renders the monthly mini-calendar and `past`/`current` day classes. |
 | [`js/weather.js`](js/weather.js) | Open-Meteo request, label mapping, browser cache fallback. |
-| [`src/worker.js`](src/worker.js) | Cloudflare Worker, Mawaqit proxy/cache, Tuya signing/auth/commands. |
+| [`src/worker.js`](src/worker.js) | Cloudflare Worker: Mawaqit proxy/cache, auth, and a thin authenticated proxy to the home bridge (no Tuya Cloud signing anymore). |
 | [`src/light-model.js`](src/light-model.js) | Device DP names, Tuya range conversion, HSV/RGB normalization, presets. |
 | [`src/plug-model.js`](src/plug-model.js) | Detects a smart plug's boolean switch DP from its live status; normalizes on/off. |
 | [`src/prayer-model.js`](src/prayer-model.js) | Parses Mawaqit page data into the five prayer/Iqama records. |
@@ -53,7 +58,7 @@ Important boundaries:
 | [`service-worker.js`](service-worker.js) | PWA network-first/offline cache. Bump its cache name when changing public assets. |
 | [`scripts/build-static.mjs`](scripts/build-static.mjs) | Copies a strict public allow-list into `dist/`. |
 | [`scripts/prepare-cloud-secrets.mjs`](scripts/prepare-cloud-secrets.mjs) | Creates ignored local Cloudflare secret material and private setup URL. |
-| [`tools/lepro-light/`](tools/lepro-light/README.md) | Optional local Python Tuya bridge for diagnostics/fallback. Not used by the deployed Worker. |
+| [`bridge/`](bridge/README.md) | **Load-bearing production infrastructure**, not a diagnostic tool: the local Tuya bridge the Worker calls for every device status/command, over a Cloudflare Tunnel. Runs on an always-on home PC via Docker Compose. |
 | [`tests/`](tests) | Node tests for prayer parsing, Tuya light-model conversion, profiles, and the theme auto-switch. |
 | [`wrangler.jsonc`](wrangler.jsonc) | Worker entrypoint and static asset binding. |
 | [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) | Runs checks, builds, then deploys every `main` push. |
@@ -130,6 +135,8 @@ One consequence: because `.settings-devices button` and `.light-presets > button
 
 ## 5. Tuya integration: exact contract
 
+The Worker never talks to Tuya Cloud for device status/commands anymore — `deviceRequest()` in [`src/worker.js`](src/worker.js) forwards to the home bridge (`bridge/`, see §2 and `bridge/README.md`) over a Cloudflare Tunnel, authenticated with `BRIDGE_TOKEN`. It deliberately keeps the same Tuya-Cloud-shaped call sites (`/v1.0/iot-03/devices/<id>/status|commands`) and the same `{ success, result: [{code, value}] }` response shape, so everything below this line — DP names, HSV math, presets, the plug switch-DP detection — is unaffected by *how* the bytes get to the device; only the transport changed.
+
 ### Device capabilities and DP rules
 
 Never invent a DP name. The current device model is defined in [`src/light-model.js`](src/light-model.js):
@@ -194,12 +201,13 @@ Create it once with `npx wrangler kv namespace create EDITOR_PROFILES`, paste th
 Required Cloudflare secrets:
 
 ```text
-TUYA_API_REGION
-TUYA_API_KEY
-TUYA_API_SECRET
-TUYA_DEVICE_ID
+BRIDGE_URL           https://bridge.<domain> — the Cloudflare Tunnel public hostname (see bridge/README.md)
+BRIDGE_TOKEN         must equal the bridge's own BRIDGE_TOKEN (bridge/.env)
+TUYA_DEVICE_ID       Tuya device id for the lamp ("Plafonier") — an identifier, not a credential; the actual Tuya account credentials never leave bridge/.env
 LIGHT_ACCESS_TOKEN
 ```
+
+`TUYA_API_REGION`/`TUYA_API_KEY`/`TUYA_API_SECRET` are **not** Worker secrets anymore — they only live in `bridge/.env`, used once by `tinytuya wizard` to fetch each device's `local_key`. If they're still set as Worker secrets from before this change, they're unused dead weight; fine to delete.
 
 Optional Cloudflare secrets (one per extra plug; a route is `503` while its secret is unset):
 
@@ -212,12 +220,13 @@ TUYA_DEVICE_ID_PLUG_PROJECTEUR
 
 For a new environment:
 
-1. Keep the four Tuya values (plus any `TUYA_DEVICE_ID_PLUG_*` you want enabled) only in `tools/lepro-light/.env` locally.
-2. Run `node scripts/prepare-cloud-secrets.mjs`.
-3. Upload the generated ignored JSON with the command in [`README.md`](README.md).
-4. Open the generated ignored `tools/cloudflare/setup-url.txt` once on the owner’s iPad.
+1. Set up `bridge/` first — see `bridge/README.md` in full (tinytuya wizard, Docker Compose, Cloudflare Tunnel, local + public curl checks) — and confirm it answers over the tunnel *before* touching the Worker.
+2. Put `BRIDGE_URL`, `BRIDGE_TOKEN`, `TUYA_DEVICE_ID`, and any `TUYA_DEVICE_ID_PLUG_*` you want enabled into `bridge/.env` locally (same file, dual purpose: the bridge itself only reads `BRIDGE_TOKEN`/`BRIDGE_PORT`/`BRIDGE_HOST`; the device ids and `BRIDGE_URL` are there only for the next step).
+3. Run `node scripts/prepare-cloud-secrets.mjs`.
+4. Upload the generated ignored JSON with the command in [`README.md`](README.md).
+5. Open the generated ignored `tools/cloudflare/setup-url.txt` once on the owner's iPad.
 
-Never commit the `.env`, generated secret JSON, setup URL, authorization header, or cookie value. The README’s older endpoint list is incomplete; this document and [`src/worker.js`](src/worker.js) are the current source of truth.
+Never commit `bridge/.env`, `bridge/devices.json`, the generated secret JSON, setup URL, authorization header, or cookie value. The README's older endpoint list is incomplete; this document, [`src/worker.js`](src/worker.js), and `bridge/README.md` are the current source of truth.
 
 ## 6. Visual editor
 
@@ -327,7 +336,8 @@ jdc-calendar-editor-images
 | `697afa7` | `NS` "on" now also turns the lamp off. Hid `.weekday-panel .rule` (Weekday separator), which was overlapping the prayer countdown and reading as a stray red bar under the prayer time. |
 | `9c00f3f` | Theme is now shared across devices via `GET`/`PUT /api/theme` (KV, same `EDITOR_PROFILES` namespace as profiles), polled every 60s. Added a daily auto-switch to light at 08:00 Europe/Brussels, computed on read in [`src/theme-model.js`](src/theme-model.js) (no cron), with DST-aware tests. |
 | `f1ecb40` | Generalized the single 08:00 flip into a full editable day/night schedule (`DAY`/`NIGHT` time inputs in the settings popup, `theme-schedule` KV key). Shortened the sync poll from 60s to 15s so toggles and schedule edits reach other devices closer to instantly. |
-| _current_ | Gave `#settings-toggle` a real settings glyph (three sliders with knobs) — the previous circle-plus-8-spokes icon read as a sun. Added a subtle `box-shadow` to `.settings-panel`/`.light-color-panel`: both were already opaque but, floating over same-coloured content with only a 1px border, looked "transparent". |
+| `04c8c4b` | Gave `#settings-toggle` a real settings glyph (three sliders with knobs) — the previous circle-plus-8-spokes icon read as a sun. Added a subtle `box-shadow` to `.settings-panel`/`.light-color-panel`: both were already opaque but, floating over same-coloured content with only a 1px border, looked "transparent". |
+| _current_ | Tuya Cloud's free "IoT Core" quota was exhausted, breaking every device button at once. Rather than just renewing it, moved device control off Tuya Cloud entirely: `bridge/` (renamed from `tools/lepro-light/`) now controls all 5 devices over the Tuya **local LAN protocol** on the owner's home PC, reached by the Worker through a Cloudflare Tunnel. `src/worker.js`'s `deviceRequest()` now proxies to the bridge (`BRIDGE_URL`/`BRIDGE_TOKEN` secrets) instead of signing Tuya Cloud requests; `TUYA_API_REGION/KEY/SECRET` are no longer Worker secrets. See §2, §5, §11, and `bridge/README.md`. |
 
 ## 10. Development, testing, deployment
 
@@ -352,10 +362,11 @@ Normal contribution procedure:
 
 ## 11. Known constraints and safe next steps
 
-- The Worker uses small module-level caches for Tuya access token and Mawaqit data. They are performance caches only; never store request/user/editor state globally.
+- The Worker uses a small module-level cache for Mawaqit data (performance only; never store request/user/editor state globally).
 - The public prayer source is external. UI should fail gracefully: hide the prayer panel only when there is no prior data; preserve stale cached Worker data when possible.
 - Tuya access is intentionally unavailable until the iPad has visited the private setup URL. A disabled light UI is expected when unauthenticated or unavailable.
-- The local Python bridge is diagnostic/fallback only. Do not regress the hosted HTTPS Worker path into a browser-to-LAN request.
+- **Device control now has a real single point of failure at home**: `bridge/` on the owner's PC, their home internet, and the Cloudflare Tunnel all have to be up for any lamp/plug button to work — this was a deliberate trade (see §2, §11's change history) made specifically to stop depending on Tuya Cloud's "IoT Core" quota, which had run out and broken every device button at once. If device control breaks again, check `bridge/README.md`'s `/healthz` endpoint and the tunnel status *before* assuming it's a code or Tuya Cloud problem — it's now much more likely to be "is the home PC/bridge container actually running."
+- `bridge/` is load-bearing production infrastructure now, not a diagnostic fallback — see `bridge/README.md` for setup, Docker Compose, and the migration note for moving it to another always-on machine.
 - Shared profiles were an explicit product decision: KV storage, the existing `LIGHT_ACCESS_TOKEN` gate, images kept local, automatic migration on first load. Layout and images remain browser-local. Do not widen `/api/profiles*` to unauthenticated access.
 - Profiles live under a single KV key (`editor-profiles`) written read-modify-write. That is safe for one owner; two devices saving in the same second could drop one profile. Move to one key per profile if this ever becomes a multi-user product.
 - For new features, choose a clear `data-editor-target` boundary early so the owner can later reposition or restyle it from the editor.

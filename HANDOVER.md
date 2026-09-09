@@ -318,7 +318,7 @@ jdc-calendar-editor-images
 - The CSS has a compact fallback below 820 px or in portrait; validate landscape first after layout changes.
 - Use pointer events, `touch-action`, visible focus styles, semantic buttons/labels, and `aria-pressed`/`aria-expanded` when extending controls.
 - RGB wheel is keyboard accessible as a slider. Sliders and drag interactions are designed for touch.
-- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v22`.
+- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v23`.
 - A user with an already-open PWA may need one refresh/reopen after deploy to claim the new service worker.
 
 ## 8. Design system
@@ -360,6 +360,7 @@ jdc-calendar-editor-images
 | `33218e4` | Cloudflare Tunnel created (`bridge.nemri.uk`, a small dedicated domain bought via Cloudflare Registrar specifically to avoid touching the owner's e-commerce domain's DNS), Worker secrets `BRIDGE_URL`/`BRIDGE_TOKEN` set and confirmed live, `TUYA_API_KEY`/`SECRET`/`REGION` deleted from the Worker (confirmed unused). Migration off Tuya Cloud is complete end-to-end. |
 | `6051125` | Bridge performance: persistent per-device connections + `nowait=True` writes. **The `nowait=True` half of this commit was wrong** and its HANDOVER note claimed it was hardware-verified when it had only been tested one command at a time — see the next entry. |
 | _current_ | Fixed what `6051125` broke, after the owner reported colour changes working once then silently failing: reverted `nowait=True` (it leaves the device's reply queued on the persistent socket, desyncing every later read), added per-device `RLock`s (the threading server was sharing one socket across concurrent requests for the same device), and added skipping of no-op writes (the real win: a colour change is 1 write instead of 3). Corrected the misleading note in the section at the top of this document. |
+| _next_ | Promoted the weekday column while Settings or its nested RGB popup is open. The time band had a higher stacking layer, so its white rule appeared above the opaque panels and intercepted touches below it. Both panels now sit above that layer; cache v23. |
 
 ## 10. Development, testing, deployment
 

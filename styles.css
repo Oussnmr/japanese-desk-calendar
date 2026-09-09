@@ -135,6 +135,10 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
   z-index: 2;
 }
 
+/* The time band is a later stacking layer. Promote the whole column while a
+   device popup is open so its opaque surface and controls remain on top. */
+.weekday-panel.has-floating-panel { z-index: 10; }
+
 .prayer-panel { position: absolute; top: clamp(30px, 5vh, 52px); left: 0; width: 108px; color: var(--muted); font-family: var(--latin-font); font-variant-numeric: tabular-nums; }
 .prayer-panel[hidden] { display: none; }
 .prayer-panel > p:first-child { display: flex; align-items: baseline; justify-content: flex-start; gap: 4px; margin: 0 0 7px; padding-bottom: 4px; border-bottom: 1px solid var(--red); font-size: 10px; letter-spacing: 0.08em; }
@@ -203,7 +207,7 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
 #settings-toggle svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; }
 /* Absolutely positioned inside #light-controls (like .light-color-panel below) so it
    never adds height to .weekday-panel's flow and cannot push or misalign anything above/below it. */
-.settings-panel { position: absolute; top: 0; left: clamp(54px, 5vw, 64px); z-index: 7; width: clamp(206px, 21vw, 236px); padding: 14px 16px 16px; border: 1px solid var(--ink); border-radius: 14px; color: var(--ink); background: var(--paper); font-family: var(--latin-font); box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28); }
+.settings-panel { position: absolute; top: 0; left: clamp(54px, 5vw, 64px); z-index: 7; width: clamp(206px, 21vw, 236px); padding: 14px 16px 16px; border: 1px solid var(--ink); border-radius: 14px; color: var(--ink); background: var(--paper); font-family: var(--latin-font); box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28); pointer-events: auto; }
 .settings-panel[hidden] { display: none; }
 .settings-heading { display: flex; align-items: baseline; gap: 5px; padding-bottom: 8px; margin: 0 0 10px; border-bottom: 1px solid var(--hairline); font-size: 11px; letter-spacing: 0.1em; }
 .settings-heading span { color: var(--red); font-family: var(--japanese-font); font-size: 16px; }
@@ -220,7 +224,7 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
 .settings-schedule label span { color: var(--red); font-family: var(--japanese-font); font-size: 12px; }
 .settings-schedule input[type="time"] { appearance: none; border: 1px solid var(--hairline); border-radius: 6px; padding: 3px 5px; color: var(--ink); background: transparent; font-family: var(--latin-font); font-size: 12px; font-variant-numeric: tabular-nums; }
 .settings-schedule input[type="time"]:focus-visible { outline: 1px solid var(--red); outline-offset: 2px; }
-.light-color-panel { position: absolute; bottom: 0; left: clamp(54px, 5vw, 64px); z-index: 8; width: clamp(224px, 23vw, 258px); padding: 14px 16px 16px; border: 1px solid var(--ink); border-radius: 14px; color: var(--ink); background: var(--paper); font-family: var(--latin-font); box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28); overflow: clip; }
+.light-color-panel { position: absolute; bottom: 0; left: clamp(54px, 5vw, 64px); z-index: 8; width: clamp(224px, 23vw, 258px); padding: 14px 16px 16px; border: 1px solid var(--ink); border-radius: 14px; color: var(--ink); background: var(--paper); font-family: var(--latin-font); box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28); overflow: clip; pointer-events: auto; }
 .light-color-panel[hidden] { display: none; }
 .color-panel-heading { display: flex; align-items: baseline; gap: 5px; padding-bottom: 8px; border-bottom: 1px solid var(--hairline); font-size: 11px; letter-spacing: 0.1em; }
 .color-panel-heading span { color: var(--red); font-family: var(--japanese-font); font-size: 16px; }

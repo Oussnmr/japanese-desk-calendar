@@ -576,6 +576,7 @@ function setColorControls(next) {
 function setSettingsPanel(open) {
   settingsPanelOpen = open;
   elements["settings-panel"].hidden = !open;
+  document.querySelector(".weekday-panel").classList.toggle("has-floating-panel", open);
   elements["settings-toggle"].setAttribute("aria-expanded", String(open));
   elements["settings-toggle"].setAttribute("aria-pressed", String(open));
   if (!open) setColorPanel(false);

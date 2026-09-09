@@ -3,11 +3,12 @@ Cloudflare Tunnel by the Worker. Talks to devices over the Tuya LOCAL
 protocol (tinytuya), never Tuya Cloud, so day-to-day operation does not
 consume the Tuya Cloud "IoT Core" API quota.
 
-Setup (one-time, see README.md): run `python -m tinytuya wizard` in this
-folder with the Tuya Cloud credentials to produce `devices.json`, including
+Setup (one-time, see README.md): produce `devices.json` here, containing
 each device's local_key, LAN ip, protocol version, and DP (data point)
-index-to-code mapping. This bridge only ever reads that file; it never
-calls Tuya Cloud itself.
+index-to-code mapping - either via `python -m tinytuya wizard` (needs a
+working Tuya IoT Core Cloud quota) or, if that quota is exhausted, via the
+`tuya-local-key` tool (no developer account needed at all - see README).
+This bridge only ever reads that file; it never calls Tuya Cloud itself.
 
 Every request must carry `Authorization: Bearer <BRIDGE_TOKEN>` - unlike the
 old same-origin-LAN version of this file, this one is reachable from the
@@ -116,11 +117,15 @@ def status_as_result(entry):
 
 
 def send_commands(entry, commands):
+    # set_multiple_values() gets "Unexpected Payload from Device" on at least
+    # the v3.3 lamp - confirmed against real hardware that individual
+    # set_value() calls work reliably across all 5 devices instead.
     device = tuya_device(entry)
-    payload = {index_for_code(entry, item["code"]): item["value"] for item in commands}
-    response = device.set_multiple_values(payload, nowait=False)
-    if isinstance(response, dict) and response.get("Error"):
-        raise RuntimeError(response["Error"])
+    for item in commands:
+        index = index_for_code(entry, item["code"])
+        response = device.set_value(index, item["value"], nowait=False)
+        if isinstance(response, dict) and response.get("Error"):
+            raise RuntimeError(response["Error"])
     STATUS_CACHE.pop(entry["id"], None)  # force a fresh read on the next status() call
     return status_as_result(entry)
 

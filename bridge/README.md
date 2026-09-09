@@ -8,25 +8,52 @@ touched once, during setup, to fetch each device's `local_key`.
 
 ## One-time setup
 
-1. Copy `.env.example` to `.env` and fill in `TUYA_API_REGION`/`TUYA_API_KEY`/
-   `TUYA_API_SECRET` (the same three values already used as Worker secrets —
-   see `tools/cloudflare/`) and a fresh `BRIDGE_TOKEN` (command to generate
-   one is in `.env.example`).
-2. `pip install -r requirements.txt` (or use a venv, as before).
-3. `python -m tinytuya wizard`, run from this folder. Log in with the Tuya
-   Cloud credentials from `.env` when prompted. **Say yes when it offers to
-   scan/poll the local devices** — that step is what fills in each device's
-   `ip` and `version`, which this bridge needs. This writes `devices.json`
-   (and `snapshot.json`) here; both are gitignored, never commit them.
-4. Open `devices.json` and sanity-check that every one of the 5 devices has
-   non-empty `id`, `key`, `ip`, `version`, and a non-empty `mapping` (the
-   DP index → code table, e.g. `"1": "switch_led"`). If `mapping` is empty
-   for a device, the wizard's cloud lookup for that device's specification
-   failed — re-run the wizard, or check that device's category is
-   supported by `tinytuya`.
-5. `docker compose up -d --build`.
-6. **Test locally before touching anything else** (per the rollout order in
-   `HANDOVER.md`):
+### Getting each device's local_key (no Tuya Developer/IoT Core account needed)
+
+`python -m tinytuya wizard` (the tinytuya-native setup path) needs a working
+Tuya Cloud **IoT Core** API quota. That quota is shared with a separate,
+easily-exhausted, one-time-only free "Cloud Develop Base Resource Trial"
+pool — if that's already exhausted, the wizard fails with
+`Code 28841004: 'IoT Core trial quota is exhausted.'` and there is no clean
+way to re-subscribe. **This is what actually worked instead**, and needs no
+Tuya developer project, Access ID, or Access Secret at all:
+
+1. Run [`vineetchoudhary/tuya-local-key`](https://github.com/vineetchoudhary/tuya-local-key)
+   locally, bound to localhost only (its web UI has **no authentication by
+   default** — never expose this port beyond your own machine):
+   ```sh
+   docker run -d --name tuya-local-key -p 127.0.0.1:8000:8000 -v tuya-session:/data \
+     ghcr.io/vineetchoudhary/tuya-local-key:latest
+   ```
+2. Open `http://127.0.0.1:8000`, log in by scanning the QR code with the
+   Smart Life/Tuya Smart app on your phone (same official flow Home
+   Assistant's own Tuya integration uses — no password ever entered here).
+3. Once logged in, `curl http://127.0.0.1:8000/api/devices` returns every
+   device's `id`, `local_key`, and (critically) a `local_strategy` object
+   shaped `{"<dp index>": {"status_code": "<code>", ...}}` — exactly the
+   index→code mapping this bridge needs, straight from Tuya's own device
+   specification, no guessing.
+4. Build `devices.json` from that response: for each device, write
+   `{ "id", "key": <local_key>, "mapping": {index: status_code, ...}, "ip": null, "version": null }`.
+   (There's no committed script for this step yet — it was done inline as a
+   short Python one-liner; worth turning into a real script here if you're
+   doing this again.)
+5. **Stop and remove the `tuya-local-key` container** — its job is done,
+   and its unauthenticated web UI is a real exposure if left running:
+   `docker rm -f tuya-local-key`.
+6. Fill in the real `ip`/`version` per device with a pure local network
+   scan (no cloud, no credentials — just needs to run on the same LAN as
+   the devices):
+   ```sh
+   python -c "import tinytuya; print(tinytuya.deviceScan(False, 15))"
+   ```
+   Match by `id` and copy `ip`/`version` into `devices.json`.
+7. Sanity-check every one of the 5 entries in `devices.json` has non-empty
+   `id`, `key`, `ip`, `version`, and a non-empty `mapping`.
+8. `docker compose up -d --build bridge` (just the bridge service, not
+   `cloudflared` yet).
+9. **Test locally before touching the tunnel or the Worker** (per the
+   rollout order in `HANDOVER.md`):
    ```sh
    curl http://127.0.0.1:8787/healthz
    curl -H "Authorization: Bearer <BRIDGE_TOKEN>" http://127.0.0.1:8787/device/<device_id>/status
@@ -35,24 +62,34 @@ touched once, during setup, to fetch each device's `local_key`.
         http://127.0.0.1:8787/device/<device_id>/commands
    ```
    Confirm the physical device actually reacts and the returned `result`
-   array has sane `code`/`value` pairs. **If a `commands` call fails with an
-   error mentioning `set_multiple_values`**, your installed `tinytuya`
-   version doesn't have that method - open an issue with me (or ask
-   whichever assistant is on duty) to switch `send_commands()` in
-   `bridge.py` to loop `device.set_value(index, value)` per DP instead.
-7. Create the Cloudflare Tunnel (once): `cloudflared tunnel login`, then
+   array has sane `code`/`value` pairs. Verified against real hardware
+   (one v3.3 lamp, three v3.4 plugs): reads work fine; if writes come back
+   `{"success": false, "msg": "Unexpected Payload from Device"}`, that's
+   `set_multiple_values()` failing on that firmware — already worked
+   around in `send_commands()` (loops `set_value()` per DP instead), so
+   this shouldn't recur, but if it does on a *new* device, that's the
+   first thing to check.
+
+   One known gap: the lamp's `colour_data` DP (not `colour_data_v2`) came
+   back as a raw hex string (`"ff00fb012dffff"`) over the local protocol
+   instead of the JSON `{"h","s","v"}` shape Tuya Cloud returns and
+   `light-model.js`'s `hsvFromColorData()` expects — not yet decoded/fixed,
+   so the RGB colour wheel may not work correctly for this lamp until
+   someone reverse-engineers that hex packing. On/off, presets, brightness,
+   warmth, and all 4 plugs are unaffected.
+10. Create the Cloudflare Tunnel (once): `cloudflared tunnel login`, then
    `cloudflared tunnel create jdc-bridge` from the Zero Trust dashboard
    (Networks → Tunnels → Create a tunnel → select Docker), which gives you
    the `CLOUDFLARE_TUNNEL_TOKEN` for `.env`. In the same dashboard flow, add
    a **Public Hostname**: pick a subdomain of your existing domain (e.g.
    `bridge.<your-domain>`) pointing at service `http://bridge:8787`.
-8. `docker compose up -d` again (picks up the tunnel token), then confirm
+11. `docker compose up -d` again (picks up the tunnel token), then confirm
    from *outside* your LAN:
    ```sh
    curl https://bridge.<your-domain>/healthz
    curl -H "Authorization: Bearer <BRIDGE_TOKEN>" https://bridge.<your-domain>/device/<device_id>/status
    ```
-9. Only once both of those work: set the Worker secrets `BRIDGE_URL`
+12. Only once both of those work: set the Worker secrets `BRIDGE_URL`
    (`https://bridge.<your-domain>`) and `BRIDGE_TOKEN` (same value as here),
    then deploy. See `HANDOVER.md` for exactly what changes in `src/worker.js`.
 

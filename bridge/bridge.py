@@ -85,10 +85,25 @@ def load_devices():
 
 DEVICES = load_devices()
 STATUS_CACHE = {}
+CONNECTIONS = {}  # device id -> persistent tinytuya.Device, reused across requests
 
 
-def tuya_device(entry):
-    return tinytuya.Device(entry["id"], entry["ip"], entry["key"], version=entry["version"])
+def tuya_device(entry, fresh=False):
+    # Opening a new local-protocol connection per request (TCP + the Tuya
+    # session handshake, especially on v3.4) is the main reason RGB/plug
+    # commands felt slow through the bridge - each command used to do
+    # several sequential device round-trips (read current state, send,
+    # confirm), every one paying that handshake cost again. Keep one
+    # persistent connection per device instead and only reconnect if it's
+    # gone stale.
+    if fresh:
+        CONNECTIONS.pop(entry["id"], None)
+    device = CONNECTIONS.get(entry["id"])
+    if device is None:
+        device = tinytuya.Device(entry["id"], entry["ip"], entry["key"], version=entry["version"])
+        device.set_socketPersistent(True)
+        CONNECTIONS[entry["id"]] = device
+    return device
 
 
 def index_for_code(entry, code):
@@ -103,8 +118,16 @@ def raw_status(entry, use_cache=True):
     now = time.monotonic() * 1000
     if use_cache and cached and now - cached["at"] < STATUS_CACHE_MS:
         return cached["dps"]
-    result = tuya_device(entry).status()
-    dps = result.get("dps")
+    try:
+        result = tuya_device(entry).status()
+        dps = result.get("dps")
+    except Exception:
+        dps = None
+    if dps is None:
+        # The persistent connection may have gone stale (device rebooted,
+        # brief network hiccup) - retry once with a fresh one before giving up.
+        result = tuya_device(entry, fresh=True).status()
+        dps = result.get("dps")
     if dps is None:
         raise RuntimeError(f"Local status request failed for device {entry['id']}: {result}")
     STATUS_CACHE[entry["id"]] = {"at": now, "dps": dps}
@@ -120,12 +143,20 @@ def send_commands(entry, commands):
     # set_multiple_values() gets "Unexpected Payload from Device" on at least
     # the v3.3 lamp - confirmed against real hardware that individual
     # set_value() calls work reliably across all 5 devices instead.
-    device = tuya_device(entry)
+    #
+    # nowait=True: waiting for the device's own low-level ACK
+    # (nowait=False) measured 235ms-1000ms per call and varies a lot; the
+    # Worker already re-checks /status afterward (up to 6x, 400ms apart) to
+    # confirm the change actually took effect, so that wait was being paid
+    # twice. Verified against real hardware that the command still applies
+    # correctly with nowait=True - only the low-level ACK is skipped.
     for item in commands:
         index = index_for_code(entry, item["code"])
-        response = device.set_value(index, item["value"], nowait=False)
-        if isinstance(response, dict) and response.get("Error"):
-            raise RuntimeError(response["Error"])
+        try:
+            tuya_device(entry).set_value(index, item["value"], nowait=True)
+        except Exception:
+            # Persistent connection may have gone stale - one retry with a fresh one.
+            tuya_device(entry, fresh=True).set_value(index, item["value"], nowait=True)
     STATUS_CACHE.pop(entry["id"], None)  # force a fresh read on the next status() call
     return status_as_result(entry)
 

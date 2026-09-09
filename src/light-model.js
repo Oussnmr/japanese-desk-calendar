@@ -74,6 +74,18 @@ export function colorScaleForDp(code) {
   return code === "colour_data_v2" ? 1000 : 255;
 }
 
+// Tuya exposes colour data in three shapes depending on the transport and
+// bulb generation. Cloud status uses JSON, newer local bulbs commonly use
+// 12 hexadecimal HSV digits, and this lamp is a Type A bulb using the legacy
+// 14-digit RRGGBB + HSV representation.
+export function colorFormatForData(value) {
+  if (typeof value !== "string") return "json";
+  const normalized = value.trim();
+  if (/^[0-9a-f]{14}$/i.test(normalized)) return "rgb8";
+  if (/^[0-9a-f]{12}$/i.test(normalized)) return "hsv16";
+  return "json";
+}
+
 function hsvToRgb({ hue, saturation, intensity }) {
   const chroma = intensity * saturation;
   const match = intensity - chroma;
@@ -81,9 +93,46 @@ function hsvToRgb({ hue, saturation, intensity }) {
   return Object.fromEntries(["r", "g", "b"].map((key, index) => [key, Math.round((base[index] * chroma + match) * 255)]));
 }
 
+function rgbToHsv({ r, g, b }) {
+  const [red, green, blue] = [r, g, b].map((channel) => channel / 255);
+  const maximum = Math.max(red, green, blue);
+  const minimum = Math.min(red, green, blue);
+  const delta = maximum - minimum;
+  let hue = 0;
+  if (delta) {
+    if (maximum === red) hue = 60 * (((green - blue) / delta) % 6);
+    else if (maximum === green) hue = 60 * ((blue - red) / delta + 2);
+    else hue = 60 * ((red - green) / delta + 4);
+  }
+  return {
+    hue: Math.round((hue + 360) % 360),
+    saturation: Math.round((maximum ? delta / maximum : 0) * 100),
+    intensity: Math.round(maximum * 100),
+  };
+}
+
 export function hsvFromColorData(value, scale = 1000) {
   try {
-    const color = typeof value === "string" ? JSON.parse(value) : value;
+    const format = colorFormatForData(value);
+    const normalized = typeof value === "string" ? value.trim() : value;
+    if (format === "rgb8") {
+      // The first six digits are the colour the Type A lamp actually renders.
+      // Prefer them over the redundant trailing HSV fields: this real lamp has
+      // already reported stale/inconsistent trailing hue data while in white mode.
+      return rgbToHsv({
+        r: Number.parseInt(normalized.slice(0, 2), 16),
+        g: Number.parseInt(normalized.slice(2, 4), 16),
+        b: Number.parseInt(normalized.slice(4, 6), 16),
+      });
+    }
+    if (format === "hsv16") {
+      const hue = Number.parseInt(normalized.slice(0, 4), 16);
+      const saturation = Number.parseInt(normalized.slice(4, 8), 16) / 1000;
+      const valuePart = Number.parseInt(normalized.slice(8, 12), 16) / 1000;
+      if (![hue, saturation, valuePart].every(Number.isFinite)) return null;
+      return { hue: Math.round(hue), saturation: Math.round(saturation * 100), intensity: Math.round(valuePart * 100) };
+    }
+    const color = typeof normalized === "string" ? JSON.parse(normalized) : normalized;
     const hue = Number(color?.h);
     const saturation = Number(color?.s) / scale;
     const valuePart = Number(color?.v) / scale;
@@ -99,11 +148,25 @@ export function rgbFromColorData(value, scale = 1000) {
   return hsv ? hsvToRgb({ hue: hsv.hue, saturation: hsv.saturation / 100, intensity: hsv.intensity / 100 }) : null;
 }
 
-export function colorDataFromHsv({ hue, saturation, intensity }, scale = 1000) {
+export function colorDataFromHsv({ hue, saturation, intensity }, scale = 1000, format = "json") {
   const normalizedHue = ((Math.round(Number(hue)) % 360) + 360) % 360;
   const normalizedSaturation = Math.min(100, Math.max(0, Number(saturation)));
   const normalizedIntensity = Math.min(100, Math.max(0, Number(intensity)));
   if (![normalizedHue, normalizedSaturation, normalizedIntensity].every(Number.isFinite)) throw new Error("Expected HSV values");
+  if (format === "rgb8") {
+    const rgb = hsvToRgb({ hue: normalizedHue, saturation: normalizedSaturation / 100, intensity: normalizedIntensity / 100 });
+    const rgbHex = [rgb.r, rgb.g, rgb.b].map((channel) => channel.toString(16).padStart(2, "0")).join("");
+    const hueHex = normalizedHue.toString(16).padStart(4, "0");
+    const saturationHex = Math.max(1, Math.round((normalizedSaturation / 100) * 255)).toString(16).padStart(2, "0");
+    const intensityHex = Math.max(1, Math.round((normalizedIntensity / 100) * 255)).toString(16).padStart(2, "0");
+    return `${rgbHex}${hueHex}${saturationHex}${intensityHex}`;
+  }
+  if (format === "hsv16") {
+    const hueHex = normalizedHue.toString(16).padStart(4, "0");
+    const saturationHex = Math.max(1, Math.round((normalizedSaturation / 100) * 1000)).toString(16).padStart(4, "0");
+    const intensityHex = Math.max(1, Math.round((normalizedIntensity / 100) * 1000)).toString(16).padStart(4, "0");
+    return `${hueHex}${saturationHex}${intensityHex}`;
+  }
   return JSON.stringify({
     h: normalizedHue,
     s: Math.max(1, Math.round((normalizedSaturation / 100) * scale)),
@@ -111,20 +174,10 @@ export function colorDataFromHsv({ hue, saturation, intensity }, scale = 1000) {
   });
 }
 
-export function colorDataFromRgb({ r, g, b }, scale = 1000) {
+export function colorDataFromRgb({ r, g, b }, scale = 1000, format = "json") {
   const channels = [r, g, b].map((channel) => Math.min(255, Math.max(0, Math.round(Number(channel)))));
   if (!channels.every(Number.isFinite)) throw new Error("Expected RGB values");
-  const [red, green, blue] = channels.map((channel) => channel / 255);
-  const maximum = Math.max(red, green, blue);
-  const minimum = Math.min(red, green, blue);
-  const delta = maximum - minimum;
-  let hue = 0;
-  if (delta) {
-    if (maximum === red) hue = 60 * (((green - blue) / delta) % 6);
-    else if (maximum === green) hue = 60 * ((blue - red) / delta + 2);
-    else hue = 60 * ((red - green) / delta + 4);
-  }
-  return colorDataFromHsv({ hue, saturation: (maximum ? delta / maximum : 0) * 100, intensity: maximum * 100 }, scale);
+  return colorDataFromHsv(rgbToHsv({ r: channels[0], g: channels[1], b: channels[2] }), scale, format);
 }
 
 export function presetForState({ on, workMode, brightnessRaw, temperatureRaw }) {

@@ -70,13 +70,13 @@ Tuya developer project, Access ID, or Access Secret at all:
    this shouldn't recur, but if it does on a *new* device, that's the
    first thing to check.
 
-   One known gap: the lamp's `colour_data` DP (not `colour_data_v2`) came
-   back as a raw hex string (`"ff00fb012dffff"`) over the local protocol
-   instead of the JSON `{"h","s","v"}` shape Tuya Cloud returns and
-   `light-model.js`'s `hsvFromColorData()` expects — not yet decoded/fixed,
-   so the RGB colour wheel may not work correctly for this lamp until
-   someone reverse-engineers that hex packing. On/off, presets, brightness,
-   warmth, and all 4 plugs are unaffected.
+   The lamp's `colour_data` DP (not `colour_data_v2`) is the legacy Type A
+   14-digit `rrggbbhhhhssvv` local format. `light-model.js` detects, parses,
+   and encodes it directly (alongside JSON and 12-digit Type B HSV). For
+   status synchronization it trusts the leading RGB bytes, because this
+   lamp has returned stale/inconsistent trailing hue bytes while in white
+   mode. Red, green, and blue writes were verified against the real lamp on
+   2026-09-09; the bridge returned each exact payload.
 10. Create the Cloudflare Tunnel (once): `cloudflared tunnel login`, then
    `cloudflared tunnel create jdc-bridge` from the Zero Trust dashboard
    (Networks → Tunnels → Create a tunnel → select Docker), which gives you

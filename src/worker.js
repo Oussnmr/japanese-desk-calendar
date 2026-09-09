@@ -1,5 +1,5 @@
 import {
-  LIGHT_DPS, brightnessRawFromPercent, colorDataFromHsv, colorDpForValues, colorScaleForDp,
+  LIGHT_DPS, brightnessRawFromPercent, colorDataFromHsv, colorDpForValues, colorFormatForData, colorScaleForDp,
   commandsForPreset, hsvFromColorData, normalizeLightStatus, temperatureRawFromPercent,
 } from "./light-model.js";
 import { parseMawaqitPrayers } from "./prayer-model.js";
@@ -127,17 +127,24 @@ async function setLightColor(env, controls) {
   const values = Object.fromEntries(result.map((item) => [item.code, item.value]));
   const colorDp = colorDpForValues(values);
   if (!colorDp) throw new Error("Light colour control is unsupported");
+  const colorFormat = colorFormatForData(values[colorDp]);
   const current = hsvFromColorData(values[colorDp], colorScaleForDp(colorDp)) || { hue: 0, saturation: 100, intensity: 100 };
   const color = {
     hue: controls.hue === undefined ? current.hue : controls.hue,
     saturation: controls.saturation === undefined ? current.saturation : controls.saturation,
     intensity: controls.intensity === undefined ? current.intensity : controls.intensity,
   };
+  const colorData = colorDataFromHsv(color, colorScaleForDp(colorDp), colorFormat);
+  const expected = hsvFromColorData(colorData, colorScaleForDp(colorDp));
   return sendLightCommands(env, [
     { code: LIGHT_DPS.power, value: true },
     { code: LIGHT_DPS.workMode, value: "colour" },
-    { code: colorDp, value: colorDataFromHsv(color, colorScaleForDp(colorDp)) },
-  ], (state) => state.on && state.workMode === "colour");
+    { code: colorDp, value: colorData },
+  ], (state) => state.on
+    && state.workMode === "colour"
+    && Math.min(Math.abs(Number(state.colorHsv?.hue) - expected.hue), 360 - Math.abs(Number(state.colorHsv?.hue) - expected.hue)) <= 2
+    && Math.abs(Number(state.colorHsv?.saturation) - expected.saturation) <= 2
+    && Math.abs(Number(state.colorHsv?.intensity) - expected.intensity) <= 2);
 }
 
 async function setLightBrightness(env, brightness) {
@@ -147,10 +154,11 @@ async function setLightBrightness(env, brightness) {
   const colorDp = colorDpForValues(values);
   const current = colorDp ? hsvFromColorData(values[colorDp], colorScaleForDp(colorDp)) : null;
   if (values[LIGHT_DPS.workMode] === "colour" && colorDp && current) {
+    const colorFormat = colorFormatForData(values[colorDp]);
     return sendLightCommands(env, [
       { code: LIGHT_DPS.power, value: true },
       { code: LIGHT_DPS.workMode, value: "colour" },
-      { code: colorDp, value: colorDataFromHsv({ ...current, intensity: brightness }, colorScaleForDp(colorDp)) },
+      { code: colorDp, value: colorDataFromHsv({ ...current, intensity: brightness }, colorScaleForDp(colorDp), colorFormat) },
     ], (state) => state.on && state.workMode === "colour" && Math.abs(Number(state.colorHsv?.intensity) - Number(brightness)) <= 2);
   }
   const raw = brightnessRawFromPercent(brightness);

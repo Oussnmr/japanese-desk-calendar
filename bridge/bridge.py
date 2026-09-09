@@ -17,6 +17,7 @@ public internet through the tunnel.
 
 import json
 import os
+import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -86,6 +87,15 @@ def load_devices():
 DEVICES = load_devices()
 STATUS_CACHE = {}
 CONNECTIONS = {}  # device id -> persistent tinytuya.Device, reused across requests
+# This is a ThreadingHTTPServer, so two overlapping requests for the same
+# device (a colour drag landing on top of the previous command's confirm
+# poll, say) would otherwise use the same socket from two threads at once
+# and corrupt it - which showed up as "one colour change works, the next
+# does nothing". One lock per device: same device serialises, different
+# devices still run in parallel.
+# RLock, not Lock: send_commands() ends by calling status_as_result(), which
+# takes the same lock again on the same thread.
+DEVICE_LOCKS = {device_id: threading.RLock() for device_id in DEVICES}
 
 
 def tuya_device(entry, fresh=False):
@@ -118,20 +128,21 @@ def raw_status(entry, use_cache=True):
     now = time.monotonic() * 1000
     if use_cache and cached and now - cached["at"] < STATUS_CACHE_MS:
         return cached["dps"]
-    try:
-        result = tuya_device(entry).status()
-        dps = result.get("dps")
-    except Exception:
-        dps = None
-    if dps is None:
-        # The persistent connection may have gone stale (device rebooted,
-        # brief network hiccup) - retry once with a fresh one before giving up.
-        result = tuya_device(entry, fresh=True).status()
-        dps = result.get("dps")
-    if dps is None:
-        raise RuntimeError(f"Local status request failed for device {entry['id']}: {result}")
-    STATUS_CACHE[entry["id"]] = {"at": now, "dps": dps}
-    return dps
+    with DEVICE_LOCKS[entry["id"]]:
+        try:
+            result = tuya_device(entry).status()
+            dps = result.get("dps")
+        except Exception:
+            dps = None
+        if dps is None:
+            # The persistent connection may have gone stale (device rebooted,
+            # brief network hiccup) - retry once with a fresh one before giving up.
+            result = tuya_device(entry, fresh=True).status()
+            dps = result.get("dps")
+        if dps is None:
+            raise RuntimeError(f"Local status request failed for device {entry['id']}: {result}")
+        STATUS_CACHE[entry["id"]] = {"at": now, "dps": dps}
+        return dps
 
 
 def status_as_result(entry):
@@ -144,21 +155,32 @@ def send_commands(entry, commands):
     # the v3.3 lamp - confirmed against real hardware that individual
     # set_value() calls work reliably across all 5 devices instead.
     #
-    # nowait=True: waiting for the device's own low-level ACK
-    # (nowait=False) measured 235ms-1000ms per call and varies a lot; the
-    # Worker already re-checks /status afterward (up to 6x, 400ms apart) to
-    # confirm the change actually took effect, so that wait was being paid
-    # twice. Verified against real hardware that the command still applies
-    # correctly with nowait=True - only the low-level ACK is skipped.
-    for item in commands:
-        index = index_for_code(entry, item["code"])
+    # nowait must stay False on a persistent connection: nowait=True fires the
+    # command without reading the device's reply, so that reply stays queued in
+    # the socket and every later read gets the *previous* message instead. That
+    # showed up exactly as "one colour change works, the next does nothing" -
+    # partial/stale dps coming back, drifting further out of sync each call.
+    with DEVICE_LOCKS[entry["id"]]:
+        # Skip DPs that already hold the requested value. Every colour change
+        # from the Worker sends switch_led=true + work_mode=colour +
+        # colour_data=X, and each write costs a full ACK round trip - but while
+        # dragging the wheel the first two are already true, so this turns a
+        # 3-write change into a 1-write one.
         try:
-            tuya_device(entry).set_value(index, item["value"], nowait=True)
-        except Exception:
-            # Persistent connection may have gone stale - one retry with a fresh one.
-            tuya_device(entry, fresh=True).set_value(index, item["value"], nowait=True)
-    STATUS_CACHE.pop(entry["id"], None)  # force a fresh read on the next status() call
-    return status_as_result(entry)
+            current = raw_status(entry)
+        except RuntimeError:
+            current = {}
+        for item in commands:
+            index = index_for_code(entry, item["code"])
+            if index in current and current[index] == item["value"]:
+                continue
+            try:
+                tuya_device(entry).set_value(index, item["value"], nowait=False)
+            except Exception:
+                # Persistent connection may have gone stale - one retry with a fresh one.
+                tuya_device(entry, fresh=True).set_value(index, item["value"], nowait=False)
+        STATUS_CACHE.pop(entry["id"], None)  # force a fresh read on the next status() call
+        return status_as_result(entry)
 
 
 class BridgeHandler(BaseHTTPRequestHandler):

@@ -534,6 +534,10 @@ async function requestLight(path, body = null) {
 function setRangeValue(id, value) {
   const rounded = Math.round(value);
   elements[id].value = String(rounded);
+  const minimum = Number(elements[id].min) || 0;
+  const maximum = Number(elements[id].max) || 100;
+  const progress = ((rounded - minimum) / (maximum - minimum)) * 100;
+  elements[id].style.setProperty("--range-progress", `${Math.min(100, Math.max(0, progress))}%`);
   elements[`${id}-value`].textContent = `${rounded}%`;
 }
 

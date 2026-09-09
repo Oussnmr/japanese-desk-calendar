@@ -318,7 +318,7 @@ jdc-calendar-editor-images
 - The CSS has a compact fallback below 820 px or in portrait; validate landscape first after layout changes.
 - Use pointer events, `touch-action`, visible focus styles, semantic buttons/labels, and `aria-pressed`/`aria-expanded` when extending controls.
 - RGB wheel is keyboard accessible as a slider. Sliders and drag interactions are designed for touch.
-- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v23`.
+- The PWA uses network-first responses with offline fallback. **Whenever public HTML, CSS, JS, fonts, icons, or assets change, increment `CACHE_NAME` in `service-worker.js`.** Current cache: `japanese-desk-calendar-v24`.
 - A user with an already-open PWA may need one refresh/reopen after deploy to claim the new service worker.
 
 ## 8. Design system
@@ -361,7 +361,8 @@ jdc-calendar-editor-images
 | `6051125` | Bridge performance: persistent per-device connections + `nowait=True` writes. **The `nowait=True` half of this commit was wrong** and its HANDOVER note claimed it was hardware-verified when it had only been tested one command at a time — see the next entry. |
 | `59ad753` | Fixed what `6051125` broke, after the owner reported colour changes working once then silently failing: reverted `nowait=True` (it leaves the device's reply queued on the persistent socket, desyncing every later read), added per-device `RLock`s (the threading server was sharing one socket across concurrent requests for the same device), and added skipping of no-op writes (the real win: a colour change is 1 write instead of 3). Corrected the misleading note in the section at the top of this document. |
 | `ef23c4f` | Promoted the weekday column while Settings or its nested RGB popup is open. The time band had a higher stacking layer, so its white rule appeared above the opaque panels and intercepted touches below it. Both panels now sit above that layer; cache v23. |
-| _current_ | Fixed the RGB wheel over the local bridge: detect/parse/encode the lamp's legacy 14-digit Type A colour payload, retain JSON and 12-digit Type B support, use the actual RGB bytes when reported trailing HSV is inconsistent, and confirm the full resulting colour. Red/green/blue were verified against the real lamp and CHILL was restored afterward. |
+| `50ba964` | Fixed the RGB wheel over the local bridge: detect/parse/encode the lamp's legacy 14-digit Type A colour payload, retain JSON and 12-digit Type B support, use the actual RGB bytes when reported trailing HSV is inconsistent, and confirm the full resulting colour. Red/green/blue were verified against the real lamp and CHILL was restored afterward. |
+| _current_ | Removed the inactive grey tail from all three colour-panel range controls. Each slider now draws only its red filled portion up to the thumb, with a transparent remainder; JavaScript keeps the fill position synchronized. Cache v24. |
 
 ## 10. Development, testing, deployment
 

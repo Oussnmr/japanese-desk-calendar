@@ -87,6 +87,7 @@ Important boundaries:
 
 - All calendar date/time logic uses `Europe/Brussels`, independently of the device locale.
 - The central day number is over the red Ensō brush image in `assets/enso-brush.png`.
+- Days `10`–`31` use a dedicated two-digit scale and positive optical spacing. Keep the `data-digits` update in `renderDate()` and the matching rules in `fonts/calendar-fonts.css`; the display font's wide strokes otherwise merge into one unreadable shape.
 - The monthly calendar renders Monday-first.
   - Current day: red circle, light text, `aria-current="date"`.
   - Days strictly earlier in the current month: red text only (`.mini-grid .past`).
@@ -362,7 +363,8 @@ jdc-calendar-editor-images
 | `59ad753` | Fixed what `6051125` broke, after the owner reported colour changes working once then silently failing: reverted `nowait=True` (it leaves the device's reply queued on the persistent socket, desyncing every later read), added per-device `RLock`s (the threading server was sharing one socket across concurrent requests for the same device), and added skipping of no-op writes (the real win: a colour change is 1 write instead of 3). Corrected the misleading note in the section at the top of this document. |
 | `ef23c4f` | Promoted the weekday column while Settings or its nested RGB popup is open. The time band had a higher stacking layer, so its white rule appeared above the opaque panels and intercepted touches below it. Both panels now sit above that layer; cache v23. |
 | `50ba964` | Fixed the RGB wheel over the local bridge: detect/parse/encode the lamp's legacy 14-digit Type A colour payload, retain JSON and 12-digit Type B support, use the actual RGB bytes when reported trailing HSV is inconsistent, and confirm the full resulting colour. Red/green/blue were verified against the real lamp and CHILL was restored afterward. |
-| _current_ | Removed the inactive grey tail from all three colour-panel range controls. Each slider now draws only its red filled portion up to the thumb, with a transparent remainder; JavaScript keeps the fill position synchronized. Cache v24. |
+| `4f78e60` | Removed the inactive grey tail from all three colour-panel range controls. Each slider now draws only its red filled portion up to the thumb, with a transparent remainder; JavaScript keeps the fill position synchronized. Cache v24. |
+| _current_ | Gave days `10`–`31` a smaller responsive scale plus positive, optically balanced spacing so the two glyphs stay distinct and centred over the Ensō on iPad landscape and compact layouts. Cache v25. |
 
 ## 10. Development, testing, deployment
 

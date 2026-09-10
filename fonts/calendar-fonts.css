@@ -88,7 +88,7 @@ body {
 }
 
 .hero-date:has(.day-number[data-digits="2"]) {
-  --hero-number-size: clamp(300px, 50vmin, 430px);
+  --hero-number-size: clamp(280px, 46vmin, 400px);
   --hero-sun-size: clamp(235px, 32vmin, 285px);
 }
 
@@ -114,7 +114,11 @@ body {
 }
 
 .day-number[data-digits="2"] {
-  letter-spacing: -0.08em;
+  /* The display font's wide strokes merge when double digits are tightened.
+     Keep an intentional gap and balance its trailing letter-space so 10–31
+     remain optically centred over the Ensō. */
+  padding-left: 0.045em;
+  letter-spacing: 0.045em;
 }
 
 @media (min-width: 821px) and (orientation: landscape) {
@@ -155,7 +159,7 @@ body {
   }
 
   .hero-date:has(.day-number[data-digits="2"]) {
-    --hero-number-size: clamp(240px, 62vw, 380px);
+    --hero-number-size: clamp(220px, 54vw, 340px);
     --hero-sun-size: clamp(180px, 43vw, 230px);
   }
 }

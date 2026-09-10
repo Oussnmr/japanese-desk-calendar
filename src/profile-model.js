@@ -4,6 +4,7 @@ const NUMERIC_FIELDS = {
   scale: { min: 70, max: 140, fallback: 100 },
   width: { min: 60, max: 140, fallback: 100 },
   opacity: { min: 10, max: 100, fallback: 100 },
+  spacing: { min: -20, max: 50, fallback: 0 },
   rotation: { min: -180, max: 180, fallback: 0 },
 };
 

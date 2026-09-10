@@ -327,6 +327,18 @@ html[data-theme="dark"] .theme-toggle .theme-sun { opacity: 0.28; color: var(--m
 .calendar-sheet.editor-active [data-editor-target][data-editor-width="true"] { width: var(--editor-width); }
 .calendar-sheet.editor-active [data-editor-target][data-editor-color="true"] { color: var(--editor-color); }
 .calendar-sheet.editor-active [data-editor-target][data-editor-color="true"] * { color: inherit !important; }
+.calendar-sheet.editor-active [data-editor-target][data-editor-spacing="true"],
+.calendar-sheet.editor-active [data-editor-target][data-editor-spacing="true"] *,
+.calendar-sheet.editor-active [data-editor-target][data-editor-spacing="true"]::before,
+.calendar-sheet.editor-active [data-editor-target][data-editor-spacing="true"]::after,
+.calendar-sheet.editor-active [data-editor-target][data-editor-spacing="true"] *::before,
+.calendar-sheet.editor-active [data-editor-target][data-editor-spacing="true"] *::after { letter-spacing: var(--editor-spacing) !important; }
+.calendar-sheet.editor-active .clock-wrap[data-editor-spacing="true"] .clock {
+  grid-template-columns:
+    calc(.80em + var(--editor-spacing)) calc(.80em + var(--editor-spacing)) calc(.25em + var(--editor-spacing))
+    calc(.80em + var(--editor-spacing)) calc(.80em + var(--editor-spacing)) calc(.25em + var(--editor-spacing))
+    calc(.80em + var(--editor-spacing)) calc(.80em + var(--editor-spacing));
+}
 body.editor-is-open .calendar-sheet [data-editor-target] { cursor: pointer; }
 body.editor-is-open .calendar-sheet .enso-ring { z-index: 0; pointer-events: auto; touch-action: manipulation; }
 body.editor-is-open .calendar-sheet [data-editor-target]:hover { outline: 1px dashed var(--hairline); outline-offset: 4px; }

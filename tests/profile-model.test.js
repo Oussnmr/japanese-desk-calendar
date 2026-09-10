@@ -20,15 +20,15 @@ test("profile names are uppercased, trimmed and stripped of unusable characters"
 test("layout values are clamped to the editor ranges and colours must be hex", () => {
   const profile = sanitizeProfile({
     overrides: {
-      year: { x: 999, y: -999, scale: 5, width: 500, opacity: 0, rotation: 400, color: "#E52B1A" },
+      year: { x: 999, y: -999, scale: 5, width: 500, opacity: 0, spacing: 999, rotation: 400, color: "#E52B1A" },
       day: { color: "red" },
     },
   });
   assert.deepEqual(profile.overrides.year, {
-    color: "#e52b1a", x: 160, y: -160, scale: 70, width: 140, opacity: 10, rotation: 180,
+    color: "#e52b1a", x: 160, y: -160, scale: 70, width: 140, opacity: 10, spacing: 50, rotation: 180,
   });
   assert.deepEqual(profile.overrides.day, {
-    color: "", x: 0, y: 0, scale: 100, width: 100, opacity: 100, rotation: 0,
+    color: "", x: 0, y: 0, scale: 100, width: 100, opacity: 100, spacing: 0, rotation: 0,
   });
 });
 

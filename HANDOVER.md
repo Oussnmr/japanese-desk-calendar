@@ -266,6 +266,7 @@ Every target supports:
 - Scale (70–140%)
 - Width (60–140%)
 - Opacity (10–100%)
+- Character spacing (`-20%` to `+50%` of the selected font size); applies to the selected target's text descendants and pseudo-labels, includes a dedicated grid adjustment for the separately slotted clock digits, and is disabled for targets without text
 - Full rotation (`-180°` to `180°`, 360° total)
 - Selected colour
 
@@ -364,7 +365,8 @@ jdc-calendar-editor-images
 | `ef23c4f` | Promoted the weekday column while Settings or its nested RGB popup is open. The time band had a higher stacking layer, so its white rule appeared above the opaque panels and intercepted touches below it. Both panels now sit above that layer; cache v23. |
 | `50ba964` | Fixed the RGB wheel over the local bridge: detect/parse/encode the lamp's legacy 14-digit Type A colour payload, retain JSON and 12-digit Type B support, use the actual RGB bytes when reported trailing HSV is inconsistent, and confirm the full resulting colour. Red/green/blue were verified against the real lamp and CHILL was restored afterward. |
 | `4f78e60` | Removed the inactive grey tail from all three colour-panel range controls. Each slider now draws only its red filled portion up to the thumb, with a transparent remainder; JavaScript keeps the fill position synchronized. Cache v24. |
-| _current_ | Gave days `10`–`31` a smaller responsive scale plus positive, optically balanced spacing so the two glyphs stay distinct and centred over the Ensō on iPad landscape and compact layouts. Cache v25. |
+| `6264c4a` | Gave days `10`–`31` a smaller responsive scale plus positive, optically balanced spacing so the two glyphs stay distinct and centred over the Ensō on iPad landscape and compact layouts. Cache v25. |
+| _current_ | Added a `SPACING` typography control to Edit Calendar for every selectable text/number target. The proportional `-20%` to `+50%` adjustment participates in Undo/Redo, local drafts, and shared profiles; non-text targets disable it. Cache v26. |
 
 ## 10. Development, testing, deployment
 

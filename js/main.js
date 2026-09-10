@@ -44,7 +44,7 @@ const elements = Object.fromEntries(
     "scene-ns", "settings-toggle", "settings-panel", "settings-light-power", "settings-all-off",
     "plug-led-power", "plug-lampe-power", "plug-multiprises-power", "plug-projecteur-power",
     "stopwatch", "stopwatch-toggle", "stopwatch-clear",
-    "calendar-editor-toggle", "calendar-editor", "calendar-editor-close", "editor-undo", "editor-redo", "editor-note", "editor-target", "editor-text", "editor-x", "editor-x-value", "editor-y", "editor-y-value", "editor-scale", "editor-scale-value", "editor-width", "editor-width-value", "editor-opacity", "editor-opacity-value", "editor-rotation", "editor-rotation-value", "editor-color", "editor-ink-color", "editor-paper-color", "editor-image-kind", "editor-image-file", "editor-image-list", "editor-apply-image", "editor-original-image", "editor-delete-image", "editor-profile-name", "editor-save-profile", "editor-delete-profile", "editor-reset", "editor-profile-list", "enso-ring",
+    "calendar-editor-toggle", "calendar-editor", "calendar-editor-close", "editor-undo", "editor-redo", "editor-note", "editor-target", "editor-text", "editor-x", "editor-x-value", "editor-y", "editor-y-value", "editor-scale", "editor-scale-value", "editor-width", "editor-width-value", "editor-opacity", "editor-opacity-value", "editor-spacing", "editor-spacing-value", "editor-rotation", "editor-rotation-value", "editor-color", "editor-ink-color", "editor-paper-color", "editor-image-kind", "editor-image-file", "editor-image-list", "editor-apply-image", "editor-original-image", "editor-delete-image", "editor-profile-name", "editor-save-profile", "editor-delete-profile", "editor-reset", "editor-profile-list", "enso-ring",
   ].map((id) => [id, document.getElementById(id)]),
 );
 
@@ -103,7 +103,7 @@ const EDITOR_TARGETS = {
   "time-rule": { selector: '[data-editor-target="time-rule"]' },
   footer: { selector: '[data-editor-target="footer"]', textId: "location-detail" },
 };
-const editorDefaults = { x: 0, y: 0, scale: 100, width: 100, opacity: 100, rotation: 0, color: "" };
+const editorDefaults = { x: 0, y: 0, scale: 100, width: 100, opacity: 100, spacing: 0, rotation: 0, color: "" };
 
 function storedJson(key, fallback) {
   try {
@@ -182,6 +182,13 @@ function applyEditorState() {
     node.style.setProperty("--editor-width", `${values.width}%`);
     node.style.setProperty("--editor-opacity", String(values.opacity / 100));
     node.style.setProperty("--editor-rotation", `${values.rotation}deg`);
+    if (values.spacing !== editorDefaults.spacing) {
+      node.style.setProperty("--editor-spacing", `${values.spacing / 100}em`);
+      node.dataset.editorSpacing = "true";
+    } else {
+      node.style.removeProperty("--editor-spacing");
+      delete node.dataset.editorSpacing;
+    }
     const customLayout = ["x", "y", "scale", "width", "opacity", "rotation"].some((key) => values[key] !== editorDefaults[key]);
     if (customLayout) node.dataset.editorCustom = "true";
     else delete node.dataset.editorCustom;
@@ -227,18 +234,22 @@ function updateEditorFields() {
   elements["editor-scale"].value = values.scale;
   elements["editor-width"].value = values.width;
   elements["editor-opacity"].value = values.opacity;
+  elements["editor-spacing"].value = values.spacing;
   elements["editor-rotation"].value = values.rotation;
   elements["editor-x-value"].textContent = values.x;
   elements["editor-y-value"].textContent = values.y;
   elements["editor-scale-value"].textContent = `${values.scale}%`;
   elements["editor-width-value"].textContent = `${values.width}%`;
   elements["editor-opacity-value"].textContent = `${values.opacity}%`;
+  elements["editor-spacing-value"].textContent = `${values.spacing}%`;
   elements["editor-rotation-value"].textContent = `${values.rotation}°`;
   elements["editor-color"].value = values.color || editorState.colors.ink || (document.documentElement.dataset.theme === "dark" ? "#f5f2ea" : "#11100e");
   elements["editor-ink-color"].value = editorState.colors.ink || (document.documentElement.dataset.theme === "dark" ? "#f5f2ea" : "#11100e");
   elements["editor-paper-color"].value = editorState.colors.paper || (document.documentElement.dataset.theme === "dark" ? "#080807" : "#f5f2ea");
   const textId = EDITOR_TARGETS[target].textId;
   const textNode = textId ? document.getElementById(textId) : null;
+  const selectedNode = document.querySelector(EDITOR_TARGETS[target].selector);
+  elements["editor-spacing"].disabled = !selectedNode?.textContent.trim();
   elements["editor-text"].disabled = !textNode;
   elements["editor-text"].value = textNode ? (editorState.text[target] ?? textNode.dataset.originalText ?? textNode.textContent) : "";
 }
@@ -1002,7 +1013,7 @@ elements["calendar-editor-close"].addEventListener("click", () => {
   elements["calendar-editor-toggle"].focus({ preventScroll: true });
 });
 elements["editor-target"].addEventListener("change", () => selectEditorTarget(elements["editor-target"].value));
-for (const [id, key] of [["editor-x", "x"], ["editor-y", "y"], ["editor-scale", "scale"], ["editor-width", "width"], ["editor-opacity", "opacity"], ["editor-rotation", "rotation"]]) {
+for (const [id, key] of [["editor-x", "x"], ["editor-y", "y"], ["editor-scale", "scale"], ["editor-width", "width"], ["editor-opacity", "opacity"], ["editor-spacing", "spacing"], ["editor-rotation", "rotation"]]) {
   elements[id].addEventListener("input", () => updateEditorValue(key, elements[id].value));
 }
 const setSelectedEditorColor = () => {

@@ -167,12 +167,12 @@ def install_hooks() -> None:
         "7": lambda: safe_action(lambda: toggle_plug("projecteur")),
         "8": lambda: safe_action(ns_scene),
         "9": lambda: safe_action(confirm_all_off),
-        "g": lambda: safe_action(toggle_light),
-        "d": lambda: safe_action(arm_all_off),
-        "[": lambda: safe_action(lambda: adjust_intensity(-STEP)),
-        "]": lambda: safe_action(lambda: adjust_intensity(STEP)),
-        "-": lambda: safe_action(lambda: adjust_tone_or_hue(-STEP)),
-        "=": lambda: safe_action(lambda: adjust_tone_or_hue(STEP)),
+        "c": lambda: safe_action(toggle_light),
+        "u": lambda: safe_action(arm_all_off),
+        "l": lambda: safe_action(lambda: adjust_intensity(-STEP)),
+        "r": lambda: safe_action(lambda: adjust_intensity(STEP)),
+        "g": lambda: safe_action(lambda: adjust_tone_or_hue(-STEP)),
+        "d": lambda: safe_action(lambda: adjust_tone_or_hue(STEP)),
     }
     for key, callback in bindings.items():
         keyboard.on_release_key(key, lambda _event, callback=callback: callback())

@@ -20,10 +20,10 @@ Configure the SIKAI software so the active layer emits these keys:
 | KEY7 | `7` | PROJECTEUR toggle |
 | KEY8 | `8` | NS scene |
 | KEY9 | `9` | Confirm ALL OFF, only after K2 press |
-| K1 Centre | `g` | Plafonnier toggle |
-| K2 Centre | `d` | Arm ALL OFF for 3 seconds |
-| K1 Left/Right | `[` / `]` | Intensity down/up |
-| K2 Left/Right | `-` / `=` | Warmth down/up in white, hue down/up in colour |
+| K1 Centre | `c` | Plafonnier toggle |
+| K2 Centre | `u` | Arm ALL OFF for 3 seconds |
+| K1 Left/Right | `l` / `r` | Intensity down/up |
+| K2 Left/Right | `g` / `d` | Warmth down/up in white, hue down/up in colour |
 
 The controller reacts on key release and ignores key repeat from a held key.
 ALL OFF requires K2 Centre, then KEY9 within three seconds. KEY9 alone does

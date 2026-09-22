@@ -391,6 +391,14 @@ Normal contribution procedure:
 
 ## 11. Known constraints and safe next steps
 
+The optional `tools/macro-controller/` process controls the existing Worker
+routes from a Windows PC for a SIKAI CASE keyboard. It is intentionally
+one-layer: keys 1–8 cover the lamp, presets, four plugs, and NS; KEY9 only
+confirms ALL OFF after K2 Centre arms it for three seconds. K1 rotation changes
+intensity; K2 rotation changes warmth in white mode or hue in colour mode.
+The process uses the existing `LIGHT_ACCESS_TOKEN` through a protected Windows
+user environment variable and never contains `BRIDGE_TOKEN` or any `local_key`.
+
 - The Worker uses a small module-level cache for Mawaqit data (performance only; never store request/user/editor state globally).
 - The public prayer source is external. UI should fail gracefully: hide the prayer panel only when there is no prior data; preserve stale cached Worker data when possible.
 - Tuya access is intentionally unavailable until the iPad has visited the private setup URL. A disabled light UI is expected when unauthenticated or unavailable.

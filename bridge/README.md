@@ -105,17 +105,20 @@ machine, so nothing needs to change on the Cloudflare side.
 
 All routes except `/healthz` require `Authorization: Bearer <BRIDGE_TOKEN>`.
 
-For a limited LAN reliability test, an authenticated client may send
+For LAN reliability testing, an authenticated client may send
 `X-Tuya-Transient: 1` on both status and command requests for one device.
 That request closes any old persistent connection for that device, bypasses
 the 800 ms status cache, opens a short connection for each TinyTuya operation,
 and closes it afterward. A command on this path is never skipped because of
 a cached state. TinyTuya error objects are reported as failures. Requests
 without the header continue to use the existing persistent path, including
-the plafonnier and the calendar. The standalone SIKAI controller currently
-uses this header only for the `LED` plug. After hardware testing, decide
-whether to extend it to the other plugs or replace it with a draining
-persistent connection; do not assume lower latency from short connections.
+the plafonnier and the calendar. The separate Windows SIKAI controller uses
+this header for all four plugs (`led`, `lampe`, `multiprises`, `projecteur`),
+but not the plafonnier. The owner confirmed two quick toggles of every plug
+and the plafonnier, plus two quick `LED` toggles while the Tuya phone app was
+open. This is a successful local test, not proof that calendar or Kage requests
+use this mode: each caller must be inspected and tested separately. Do not
+assume short connections are always faster or enable this mode globally.
 
 - `GET /healthz` - `{ "ok": true, "devices": <count> }`, no auth, for quick liveness checks.
 - `GET /device/<id>/status` - `{ "success": true, "result": [{ "code", "value" }, ...] }`.

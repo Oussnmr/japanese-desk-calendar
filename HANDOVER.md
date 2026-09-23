@@ -79,7 +79,7 @@ Important boundaries:
 | [`bridge/`](bridge/README.md) | **Load-bearing production infrastructure**, not a diagnostic tool: the local Tuya bridge the Worker calls for every device status/command, over a Cloudflare Tunnel. Runs on an always-on home PC via Docker Compose. |
 | [`tests/`](tests) | Node tests for prayer parsing, Tuya light-model conversion, profiles, and the theme auto-switch. |
 | [`wrangler.jsonc`](wrangler.jsonc) | Worker entrypoint and static asset binding. |
-| [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) | Runs checks, builds, then deploys every `main` push. |
+| [`.github/workflows/deploy-cloudflare.yml`](.github/workflows/deploy-cloudflare.yml) | Runs checks, builds, then deploys every `main` push. |
 
 ## 4. Main UI and behaviour
 
@@ -391,7 +391,7 @@ Normal contribution procedure:
 
 ## 11. Known constraints and safe next steps
 
-**SIKAI / local bridge canary (2026-09-23):** The standalone Windows
+**SIKAI / local bridge reliability test (2026-09-23):** The standalone Windows
 controller outside this repository pairs the SIKAI HID device and calls the
 local bridge directly. The bridge's persistent TinyTuya sockets were observed
 with unread receive buffers (up to about 59 KB on one device), while toggles
@@ -399,10 +399,14 @@ sometimes read stale states and commands failed to confirm. The phone's Tuya
 app was open during the failing tests. The bridge now supports an authenticated
 `X-Tuya-Transient: 1` request header: it closes the old socket for that device,
 uses short connections and uncached status for that request, and checks
-TinyTuya error objects. The standalone controller uses the header only for
-the `LED` plug as a hardware canary. The plafonnier and other devices retain
-their existing path. Real-device results and latency still require checking
-before extending the change. See `bridge/README.md` and
+TinyTuya error objects. The standalone controller uses the header for all
+four plugs (`led`, `lampe`, `multiprises`, `projecteur`); the plafonnier retains
+its persistent path. The owner confirmed two quick toggles of each plug and
+the plafonnier, and later confirmed that `LED` still responded quickly while
+the Tuya phone app was open. This does not validate the calendar or Kage:
+the current Worker does not send the header, and Kage's route has not been
+established. Inspect each caller, measure its failures, then test a limited
+change before generalizing. See `bridge/README.md` and
 `bridge/test_connection_mode.py`. Never place bridge credentials in the
 controller's logs or a public client.
 

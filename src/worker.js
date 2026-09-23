@@ -68,7 +68,7 @@ function authorized(request, env) {
 // callers already use (/v1.0/iot-03/devices/<id>/status|commands) purely so
 // none of them needed to change when this stopped being Tuya Cloud -
 // only the device id and the status/commands suffix are actually used.
-async function deviceRequest(env, path, { method = "GET", body = null } = {}) {
+async function deviceRequest(env, path, { method = "GET", body = null, transient = false } = {}) {
   const match = path.match(/\/devices\/([^/]+)\/(status|commands)$/);
   if (!match) throw new Error(`Unsupported device path: ${path}`);
   const [, deviceId, action] = match;
@@ -76,6 +76,7 @@ async function deviceRequest(env, path, { method = "GET", body = null } = {}) {
     method,
     headers: {
       authorization: `Bearer ${env.BRIDGE_TOKEN}`,
+      ...(transient ? { "x-tuya-transient": "1" } : {}),
       ...(body ? { "content-type": "application/json" } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -179,7 +180,7 @@ async function setLightWarmth(env, warmth) {
 }
 
 async function plugValues(env, deviceId) {
-  const result = await deviceRequest(env, `/v1.0/iot-03/devices/${deviceId}/status`);
+  const result = await deviceRequest(env, `/v1.0/iot-03/devices/${deviceId}/status`, { transient: true });
   return Object.fromEntries(result.map((item) => [item.code, item.value]));
 }
 
@@ -193,6 +194,7 @@ async function setPlug(env, deviceId, on) {
   await deviceRequest(env, `/v1.0/iot-03/devices/${deviceId}/commands`, {
     method: "POST",
     body: { commands: [{ code: switchCode, value: on }] },
+    transient: true,
   });
   for (let attempt = 0; attempt < 6; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, 400));

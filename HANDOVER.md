@@ -156,6 +156,13 @@ One consequence: because `.settings-devices button` and `.light-presets > button
 
 The Worker never talks to Tuya Cloud for device status/commands anymore — `deviceRequest()` in [`src/worker.js`](src/worker.js) forwards to the home bridge (`bridge/`, see §2 and `bridge/README.md`) over a Cloudflare Tunnel, authenticated with `BRIDGE_TOKEN`. It deliberately keeps the same Tuya-Cloud-shaped call sites (`/v1.0/iot-03/devices/<id>/status|commands`) and the same `{ success, result: [{code, value}] }` response shape, so everything below this line — DP names, HSV math, presets, the plug switch-DP detection — is unaffected by *how* the bytes get to the device; only the transport changed.
 
+All four plug paths opt into the bridge's authenticated transient connection
+mode by adding `X-Tuya-Transient: 1` server-side in the Worker. This bypasses
+stale status cache/socket data for plug reads and commands. Lamp/RGB calls do
+not send the header and retain the faster persistent connection path that was
+validated for colour dragging. The header and `BRIDGE_TOKEN` never reach the
+browser.
+
 ### Device capabilities and DP rules
 
 Never invent a DP name. The current device model is defined in [`src/light-model.js`](src/light-model.js):
@@ -366,7 +373,9 @@ jdc-calendar-editor-images
 | `50ba964` | Fixed the RGB wheel over the local bridge: detect/parse/encode the lamp's legacy 14-digit Type A colour payload, retain JSON and 12-digit Type B support, use the actual RGB bytes when reported trailing HSV is inconsistent, and confirm the full resulting colour. Red/green/blue were verified against the real lamp and CHILL was restored afterward. |
 | `4f78e60` | Removed the inactive grey tail from all three colour-panel range controls. Each slider now draws only its red filled portion up to the thumb, with a transparent remainder; JavaScript keeps the fill position synchronized. Cache v24. |
 | `6264c4a` | Gave days `10`–`31` a smaller responsive scale plus positive, optically balanced spacing so the two glyphs stay distinct and centred over the Ensō on iPad landscape and compact layouts. Cache v25. |
-| _current_ | Added a `SPACING` typography control to Edit Calendar for every selectable text/number target. The proportional `-20%` to `+50%` adjustment participates in Undo/Redo, local drafts, and shared profiles; non-text targets disable it. Cache v26. |
+| `fffef54` | Added a `SPACING` typography control to Edit Calendar for every selectable text/number target. The proportional `-20%` to `+50%` adjustment participates in Undo/Redo, local drafts, and shared profiles; non-text targets disable it. Cache v26. |
+| `a309d35` | Added and hardware-validated the optional transient TinyTuya connection mode for the standalone SIKAI path on all four plugs; the plafonnier stays persistent. |
+| _current_ | Made every calendar Worker plug status/command request use the same transient bridge mode, while preserving persistent connections for the plafonnier/RGB. Added a Worker transport regression test; production calendar hardware confirmation remains pending. |
 
 ## 10. Development, testing, deployment
 
@@ -399,16 +408,16 @@ sometimes read stale states and commands failed to confirm. The phone's Tuya
 app was open during the failing tests. The bridge now supports an authenticated
 `X-Tuya-Transient: 1` request header: it closes the old socket for that device,
 uses short connections and uncached status for that request, and checks
-TinyTuya error objects. The standalone controller uses the header for all
-four plugs (`led`, `lampe`, `multiprises`, `projecteur`); the plafonnier retains
-its persistent path. The owner confirmed two quick toggles of each plug and
-the plafonnier, and later confirmed that `LED` still responded quickly while
-the Tuya phone app was open. This does not validate the calendar or Kage:
-the current Worker does not send the header, and Kage's route has not been
-established. Inspect each caller, measure its failures, then test a limited
-change before generalizing. See `bridge/README.md` and
-`bridge/test_connection_mode.py`. Never place bridge credentials in the
-controller's logs or a public client.
+TinyTuya error objects. The standalone controller and calendar Worker use the
+header for all four plugs (`led`, `lampe`, `multiprises`, `projecteur`); the
+plafonnier retains its persistent path. The owner confirmed two quick toggles
+of each plug and the plafonnier, and later confirmed that `LED` still responded
+quickly while the Tuya phone app was open, through the SIKAI path. The calendar
+Worker forwarding is covered by an automated transport test but needs a real
+production check after deployment. Kage's route has not been established.
+Inspect each caller before generalizing further. See `bridge/README.md` and
+`bridge/test_connection_mode.py`. Never place bridge credentials in a log or
+public client.
 
 The optional `tools/macro-controller/` process controls the existing Worker
 routes from a Windows PC for a SIKAI CASE keyboard. It is intentionally

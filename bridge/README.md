@@ -111,14 +111,15 @@ That request closes any old persistent connection for that device, bypasses
 the 800 ms status cache, opens a short connection for each TinyTuya operation,
 and closes it afterward. A command on this path is never skipped because of
 a cached state. TinyTuya error objects are reported as failures. Requests
-without the header continue to use the existing persistent path, including
-the plafonnier and the calendar. The separate Windows SIKAI controller uses
-this header for all four plugs (`led`, `lampe`, `multiprises`, `projecteur`),
-but not the plafonnier. The owner confirmed two quick toggles of every plug
-and the plafonnier, plus two quick `LED` toggles while the Tuya phone app was
-open. This is a successful local test, not proof that calendar or Kage requests
-use this mode: each caller must be inspected and tested separately. Do not
-assume short connections are always faster or enable this mode globally.
+without the header continue to use the existing persistent path. The separate
+Windows SIKAI controller and the calendar Worker use this header for all four
+plugs (`led`, `lampe`, `multiprises`, `projecteur`), but not the plafonnier.
+The owner confirmed two quick toggles of every plug and the plafonnier, plus
+two quick `LED` toggles while the Tuya phone app was open, on the SIKAI path.
+The calendar Worker opt-in is covered by a transport test but still needs a
+production hardware check. Kage remains a separate caller that must be
+inspected before changing it. Do not assume short connections are always
+faster or enable this mode globally.
 
 - `GET /healthz` - `{ "ok": true, "devices": <count> }`, no auth, for quick liveness checks.
 - `GET /device/<id>/status` - `{ "success": true, "result": [{ "code", "value" }, ...] }`.

@@ -391,6 +391,21 @@ Normal contribution procedure:
 
 ## 11. Known constraints and safe next steps
 
+**SIKAI / local bridge canary (2026-09-23):** The standalone Windows
+controller outside this repository pairs the SIKAI HID device and calls the
+local bridge directly. The bridge's persistent TinyTuya sockets were observed
+with unread receive buffers (up to about 59 KB on one device), while toggles
+sometimes read stale states and commands failed to confirm. The phone's Tuya
+app was open during the failing tests. The bridge now supports an authenticated
+`X-Tuya-Transient: 1` request header: it closes the old socket for that device,
+uses short connections and uncached status for that request, and checks
+TinyTuya error objects. The standalone controller uses the header only for
+the `LED` plug as a hardware canary. The plafonnier and other devices retain
+their existing path. Real-device results and latency still require checking
+before extending the change. See `bridge/README.md` and
+`bridge/test_connection_mode.py`. Never place bridge credentials in the
+controller's logs or a public client.
+
 The optional `tools/macro-controller/` process controls the existing Worker
 routes from a Windows PC for a SIKAI CASE keyboard. It is intentionally
 one-layer: keys 1–8 cover the lamp, presets, four plugs, and NS; KEY9 only

@@ -98,7 +98,7 @@ CONNECTIONS = {}  # device id -> persistent tinytuya.Device, reused across reque
 DEVICE_LOCKS = {device_id: threading.RLock() for device_id in DEVICES}
 
 
-def tuya_device(entry, fresh=False):
+def tuya_device(entry, fresh=False, transient=False):
     # Opening a new local-protocol connection per request (TCP + the Tuya
     # session handshake, especially on v3.4) is the main reason RGB/plug
     # commands felt slow through the bridge - each command used to do
@@ -106,14 +106,41 @@ def tuya_device(entry, fresh=False):
     # confirm), every one paying that handshake cost again. Keep one
     # persistent connection per device instead and only reconnect if it's
     # gone stale.
-    if fresh:
-        CONNECTIONS.pop(entry["id"], None)
+    if fresh or transient:
+        previous = CONNECTIONS.pop(entry["id"], None)
+        if previous is not None:
+            previous.close()
+    if transient:
+        device = tinytuya.Device(entry["id"], entry["ip"], entry["key"], version=entry["version"])
+        device.set_socketPersistent(False)
+        return device
     device = CONNECTIONS.get(entry["id"])
     if device is None:
         device = tinytuya.Device(entry["id"], entry["ip"], entry["key"], version=entry["version"])
         device.set_socketPersistent(True)
         CONNECTIONS[entry["id"]] = device
     return device
+
+
+def device_status(entry, transient=False, fresh=False):
+    device = tuya_device(entry, fresh=fresh, transient=transient)
+    try:
+        return device.status()
+    finally:
+        if transient:
+            device.close()
+
+
+def device_set_value(entry, index, value, transient=False, fresh=False):
+    device = tuya_device(entry, fresh=fresh, transient=transient)
+    try:
+        response = device.set_value(index, value, nowait=False)
+        if transient and isinstance(response, dict) and ("Err" in response or "Error" in response):
+            raise RuntimeError("Tuya refused the device command")
+        return response
+    finally:
+        if transient:
+            device.close()
 
 
 def index_for_code(entry, code):
@@ -123,21 +150,23 @@ def index_for_code(entry, code):
     return index
 
 
-def raw_status(entry, use_cache=True):
+def raw_status(entry, use_cache=True, transient=False):
+    if transient:
+        use_cache = False
     cached = STATUS_CACHE.get(entry["id"])
     now = time.monotonic() * 1000
     if use_cache and cached and now - cached["at"] < STATUS_CACHE_MS:
         return cached["dps"]
     with DEVICE_LOCKS[entry["id"]]:
         try:
-            result = tuya_device(entry).status()
+            result = device_status(entry, transient=transient)
             dps = result.get("dps")
         except Exception:
             dps = None
         if dps is None:
             # The persistent connection may have gone stale (device rebooted,
             # brief network hiccup) - retry once with a fresh one before giving up.
-            result = tuya_device(entry, fresh=True).status()
+            result = device_status(entry, transient=transient, fresh=True)
             dps = result.get("dps")
         if dps is None:
             raise RuntimeError(f"Local status request failed for device {entry['id']}: {result}")
@@ -145,12 +174,12 @@ def raw_status(entry, use_cache=True):
         return dps
 
 
-def status_as_result(entry):
-    dps = raw_status(entry)
+def status_as_result(entry, transient=False):
+    dps = raw_status(entry, transient=transient)
     return [{"code": entry["mapping"][index], "value": value} for index, value in dps.items() if index in entry["mapping"]]
 
 
-def send_commands(entry, commands):
+def send_commands(entry, commands, transient=False):
     # set_multiple_values() gets "Unexpected Payload from Device" on at least
     # the v3.3 lamp - confirmed against real hardware that individual
     # set_value() calls work reliably across all 5 devices instead.
@@ -167,20 +196,24 @@ def send_commands(entry, commands):
         # dragging the wheel the first two are already true, so this turns a
         # 3-write change into a 1-write one.
         try:
-            current = raw_status(entry)
+            current = raw_status(entry, transient=transient)
         except RuntimeError:
             current = {}
         for item in commands:
             index = index_for_code(entry, item["code"])
-            if index in current and current[index] == item["value"]:
+            if not transient and index in current and current[index] == item["value"]:
                 continue
             try:
-                tuya_device(entry).set_value(index, item["value"], nowait=False)
+                device_set_value(entry, index, item["value"], transient=transient)
             except Exception:
+                if transient:
+                    # The write may have reached the device. Let the client
+                    # verify the state before deciding whether to retry.
+                    raise
                 # Persistent connection may have gone stale - one retry with a fresh one.
-                tuya_device(entry, fresh=True).set_value(index, item["value"], nowait=False)
+                device_set_value(entry, index, item["value"], fresh=True)
         STATUS_CACHE.pop(entry["id"], None)  # force a fresh read on the next status() call
-        return status_as_result(entry)
+        return status_as_result(entry, transient=transient)
 
 
 class BridgeHandler(BaseHTTPRequestHandler):
@@ -219,7 +252,8 @@ class BridgeHandler(BaseHTTPRequestHandler):
             self.respond_json(404, {"error": "not found"})
             return
         try:
-            self.respond_json(200, {"success": True, "result": status_as_result(entry)})
+            transient = self.headers.get("X-Tuya-Transient") == "1"
+            self.respond_json(200, {"success": True, "result": status_as_result(entry, transient=transient)})
         except RuntimeError as error:
             self.respond_json(503, {"success": False, "msg": str(error)})
 
@@ -234,7 +268,8 @@ class BridgeHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         try:
             body = json.loads(self.rfile.read(length) or b"{}")
-            self.respond_json(200, {"success": True, "result": send_commands(entry, body.get("commands", []))})
+            transient = self.headers.get("X-Tuya-Transient") == "1"
+            self.respond_json(200, {"success": True, "result": send_commands(entry, body.get("commands", []), transient=transient)})
         except (RuntimeError, ValueError, json.JSONDecodeError) as error:
             self.respond_json(503, {"success": False, "msg": str(error)})
 

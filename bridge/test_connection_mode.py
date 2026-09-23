@@ -68,6 +68,27 @@ class BridgeConnectionTests(unittest.TestCase):
         first.set_socketPersistent.assert_called_once_with(True)
         first.close.assert_not_called()
 
+    def test_direct_write_does_not_use_stale_status_or_skip_equal_cache_value(self):
+        self.entry["mapping"] = {"1": "switch_led"}
+        self.entry["mapping_reverse"] = {"switch_led": "1"}
+        self.ns["STATUS_CACHE"]["example"] = {"at": time.monotonic() * 1000, "dps": {"1": True}}
+        result = self.ns["send_commands"](
+            self.entry, [{"code": "switch_led", "value": True}], direct=True
+        )
+        self.assertEqual(result, [])
+        self.created[0].set_value.assert_called_once_with("1", True, nowait=False)
+        self.created[0].status.assert_not_called()
+        self.assertNotIn("example", self.ns["STATUS_CACHE"])
+
+    def test_direct_write_rejects_multiple_values_and_device_error(self):
+        self.entry["mapping"] = {"1": "switch_led"}
+        self.entry["mapping_reverse"] = {"switch_led": "1"}
+        with self.assertRaisesRegex(ValueError, "one lamp"):
+            self.ns["send_commands"](self.entry, [{"code": "switch_led", "value": True}] * 2, direct=True)
+        self.ns["tinytuya"].Device = lambda *_args, **_kwargs: Mock(set_value=Mock(return_value={"Err": "904"}))
+        with self.assertRaisesRegex(RuntimeError, "Tuya refused"):
+            self.ns["send_commands"](self.entry, [{"code": "switch_led", "value": True}], direct=True)
+
 
 if __name__ == "__main__":
     unittest.main()

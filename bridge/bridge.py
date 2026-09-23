@@ -179,7 +179,7 @@ def status_as_result(entry, transient=False):
     return [{"code": entry["mapping"][index], "value": value} for index, value in dps.items() if index in entry["mapping"]]
 
 
-def send_commands(entry, commands, transient=False):
+def send_commands(entry, commands, transient=False, direct=False):
     # set_multiple_values() gets "Unexpected Payload from Device" on at least
     # the v3.3 lamp - confirmed against real hardware that individual
     # set_value() calls work reliably across all 5 devices instead.
@@ -190,6 +190,19 @@ def send_commands(entry, commands, transient=False):
     # showed up exactly as "one colour change works, the next does nothing" -
     # partial/stale dps coming back, drifting further out of sync each call.
     with DEVICE_LOCKS[entry["id"]]:
+        if direct:
+            # Authenticated local controller: one explicit lamp value per call.
+            # The TinyTuya call still waits for its ACK, but an immediately
+            # following status can be stale and must not hold up the next key.
+            if transient or len(commands) != 1 or commands[0].get("code") not in {"switch_led", "bright_value", "temp_value"}:
+                raise ValueError("Direct mode requires one lamp power or white-control value")
+            item = commands[0]
+            index = index_for_code(entry, item["code"])
+            response = device_set_value(entry, index, item["value"])
+            if isinstance(response, dict) and ("Err" in response or "Error" in response):
+                raise RuntimeError("Tuya refused the device command")
+            STATUS_CACHE.pop(entry["id"], None)
+            return []  # No claim that a fresh physical status was observed.
         # Skip DPs that already hold the requested value. Every colour change
         # from the Worker sends switch_led=true + work_mode=colour +
         # colour_data=X, and each write costs a full ACK round trip - but while
@@ -269,7 +282,8 @@ class BridgeHandler(BaseHTTPRequestHandler):
         try:
             body = json.loads(self.rfile.read(length) or b"{}")
             transient = self.headers.get("X-Tuya-Transient") == "1"
-            self.respond_json(200, {"success": True, "result": send_commands(entry, body.get("commands", []), transient=transient)})
+            direct = self.headers.get("X-Tuya-Direct") == "1"
+            self.respond_json(200, {"success": True, "result": send_commands(entry, body.get("commands", []), transient=transient, direct=direct)})
         except (RuntimeError, ValueError, json.JSONDecodeError) as error:
             self.respond_json(503, {"success": False, "msg": str(error)})
 

@@ -121,6 +121,19 @@ production hardware check. Kage remains a separate caller that must be
 inspected before changing it. Do not assume short connections are always
 faster or enable this mode globally.
 
+For a single plafonnier power, brightness, or white-temperature command, an
+authenticated local controller may send `X-Tuya-Direct: 1`. The bridge keeps
+the persistent connection and waits for the TinyTuya write ACK, but does not
+consult its cached state before writing or wait for a new device status after
+writing. It returns an empty `result` because physical confirmation was not
+observed. It rejects multi-command requests in this mode; calendar/Worker
+requests without the header keep their existing behavior. The SIKAI controller
+uses this only for those three single-value plafonnier controls, with a short
+local prediction window for repeated knob turns and power toggles. A failed
+write invalidates that prediction. The owner verified that two quick power
+presses and repeated knob turns responded immediately on the real plafonnier
+after the local bridge deployment on 2026-09-23.
+
 - `GET /healthz` - `{ "ok": true, "devices": <count> }`, no auth, for quick liveness checks.
 - `GET /device/<id>/status` - `{ "success": true, "result": [{ "code", "value" }, ...] }`.
 - `POST /device/<id>/commands` - body `{ "commands": [{ "code", "value" }, ...] }`, same response shape as status.

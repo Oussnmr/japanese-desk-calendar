@@ -419,6 +419,19 @@ Inspect each caller before generalizing further. See `bridge/README.md` and
 `bridge/test_connection_mode.py`. Never place bridge credentials in a log or
 public client.
 
+**Plafonnier response-time correction (2026-09-23):** The SIKAI controller's
+status-confirmation fallback was observed blocking repeated lamp actions for
+roughly 1.8 seconds when immediate post-write status lagged. For one
+`switch_led`, `bright_value`, or `temp_value` write, its authenticated request
+now carries `X-Tuya-Direct: 1`. The bridge keeps the persistent socket, waits
+for the TinyTuya ACK, bypasses cached-state no-op skipping, and returns without
+a status read. The controller keeps the last requested lamp value for 1.5
+seconds so quick repeat toggles/knob turns do not reuse stale status; on request
+failure it drops that prediction. This is opt-in and does not affect Worker
+requests or plug behavior. Offline tests passed; the owner confirmed that two
+quick power presses and repeated knob turns responded immediately on the real
+plafonnier after deployment. Continue watching for longer-term reliability.
+
 The optional `tools/macro-controller/` process controls the existing Worker
 routes from a Windows PC for a SIKAI CASE keyboard. It is intentionally
 one-layer: keys 1–8 cover the lamp, presets, four plugs, and NS; KEY9 only
